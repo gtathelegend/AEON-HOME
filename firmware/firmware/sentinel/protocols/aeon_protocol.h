@@ -9,7 +9,10 @@ public:
     AeonProtocol(ITransport& transport);
 
     // ── Existing messages ──────────────────────────────────────────────────
-    void sendSensorUpdate(const SensorReading* reading, uint32_t seq, uint32_t model_v);
+    void sendSensorUpdate(const SensorReading* reading, uint32_t seq, uint32_t model_v,
+                          uint32_t profile_v = 0, float pref_temp = 21.0f,
+                          const char* activity = "Idle", const char* policy = "background_policy",
+                          float confidence = 1.0f);
     void sendHeartbeat(uint32_t seq, uint32_t model_v);
     void sendMemoryStatus(const char* status, uint32_t model_v, bool checksum_valid);
     void sendFeedbackEvent(const char* event_name);

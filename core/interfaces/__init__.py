@@ -7,3 +7,15 @@ from core.interfaces.storage import IStorage, ICheckpointStore
 from core.interfaces.clock import IClock
 from core.interfaces.transport import ITransport
 from core.interfaces.runtime import IInferenceRuntime, IModelLoader, IScheduler
+from core.interfaces.adaptive import (
+    IContextProvider,
+    IContextEngine,
+    IActivityProvider,
+    IActivityEngine,
+    IProfileStore,
+    IProfileEngine,
+    IPolicy,
+    IPolicyEngine,
+    IDecisionPublisher,
+)
+

@@ -13,7 +13,7 @@ public:
     void init();
 
     /** Read sensors, extract features, send update to transport. */
-    void transmit(AeonState* state);
+    void transmit(AeonState* state, const char* activity = "Idle", const char* policy = "background_policy", float confidence = 1.0f);
 
     const SensorReading* getLatestReading() const { return &_latest_reading; }
     const FeatureFrame* getLatestFrame() const { return &_latest_frame; }

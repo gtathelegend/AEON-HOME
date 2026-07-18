@@ -18,6 +18,10 @@ static void routerCallback(const char* typ, const char* json_str, void* context)
     else if (strcmp(typ, "deployment_commit")   == 0) mgr->handleDeploymentCommit(json_str);
     else if (strcmp(typ, "deployment_rollback") == 0) mgr->handleDeploymentRollback(json_str);
     else if (strcmp(typ, "statistics_request")  == 0) mgr->handleStatisticsRequest(json_str);
+    else if (strcmp(typ, "profile_update")       == 0) mgr->handleProfileUpdate(json_str);
+    else if (strcmp(typ, "decision_update")      == 0) mgr->handleDecisionUpdate(json_str);
+    else if (strcmp(typ, "context_summary")      == 0) mgr->handleContextSummary(json_str);
+    else if (strcmp(typ, "activity_summary")     == 0) mgr->handleActivitySummary(json_str);
 }
 
 // ── Constructor ──────────────────────────────────────────────────────────────
@@ -31,7 +35,11 @@ RuntimeManager::RuntimeManager()
       _last_stats_flush_ms(0),
       _last_buffer_flush_ms(0),
       _model_activated_at_ms(0)
-{}
+{
+    strcpy(_current_activity, "Idle");
+    strcpy(_selected_policy, "background_policy");
+    _decision_confidence = 1.0f;
+}
 
 // ── Main Tick ────────────────────────────────────────────────────────────────
 void RuntimeManager::tick() {
@@ -145,6 +153,10 @@ bool RuntimeManager::stage09_policy_init() {
     _router.registerHandler("deployment_commit",   routerCallback, this);
     _router.registerHandler("deployment_rollback", routerCallback, this);
     _router.registerHandler("statistics_request",  routerCallback, this);
+    _router.registerHandler("profile_update",       routerCallback, this);
+    _router.registerHandler("decision_update",      routerCallback, this);
+    _router.registerHandler("context_summary",      routerCallback, this);
+    _router.registerHandler("activity_summary",     routerCallback, this);
 
     Serial.println("[BOOT] Stage 9: Policy Engine Initialized [OK]");
     return true;
@@ -201,7 +213,12 @@ void RuntimeManager::onSampleTask(void* context) {
     mgr->_state.seq++;
 
     // Transmit sensor telemetry
-    mgr->_telemetry.transmit(&mgr->_state);
+    mgr->_telemetry.transmit(
+        &mgr->_state,
+        mgr->_current_activity,
+        mgr->_selected_policy,
+        mgr->_decision_confidence
+    );
 
     // Run on-device inference using ModelRuntime
     const SensorReading* reading = mgr->_telemetry.getLatestReading();
@@ -470,3 +487,70 @@ void RuntimeManager::handleStatisticsRequest(const char* json_str) {
     (void)json_str;
     _flushStatistics();
 }
+
+void RuntimeManager::handleProfileUpdate(const char* json_str) {
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, json_str);
+    if (error) return;
+
+    if (doc.containsKey("preferred_temp")) {
+        _state.preferred_temp = doc["preferred_temp"];
+    }
+    if (doc.containsKey("profile_version")) {
+        _state.profile_version = doc["profile_version"];
+    }
+
+    _checkpoint.save(&_state);
+
+    Serial.print("[Profile] Received version: ");
+    Serial.print(_state.profile_version);
+    Serial.print(", preferred_temp: ");
+    Serial.println(_state.preferred_temp);
+
+    _actuators.playBeep(1);
+}
+
+void RuntimeManager::handleDecisionUpdate(const char* json_str) {
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, json_str);
+    if (error) return;
+
+    const char* selected_policy = doc["selected_policy"] | "background_policy";
+    strncpy(_selected_policy, selected_policy, sizeof(_selected_policy) - 1);
+    _selected_policy[sizeof(_selected_policy) - 1] = '\0';
+
+    _decision_confidence = doc["confidence"] | 1.0f;
+
+    const char* action = doc["requested_action"] | "no_action";
+    if (strcmp(action, "notify") == 0) {
+        _actuators.playBeep(1);
+    } else if (strcmp(action, "actuate_relay") == 0) {
+        _actuators.setLed(true);
+    } else if (strcmp(action, "deactivate_relay") == 0) {
+        _actuators.setLed(false);
+    }
+
+    Serial.print("[Decision] Policy: ");
+    Serial.print(_selected_policy);
+    Serial.print(", Action: ");
+    Serial.println(action);
+}
+
+void RuntimeManager::handleContextSummary(const char* json_str) {
+    (void)json_str;
+    Serial.println("[Context] Summary received");
+}
+
+void RuntimeManager::handleActivitySummary(const char* json_str) {
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, json_str);
+    if (error) return;
+
+    const char* activity = doc["activity"] | "Idle";
+    strncpy(_current_activity, activity, sizeof(_current_activity) - 1);
+    _current_activity[sizeof(_current_activity) - 1] = '\0';
+
+    Serial.print("[Activity] Current: ");
+    Serial.println(_current_activity);
+}
+

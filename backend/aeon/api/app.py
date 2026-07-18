@@ -25,6 +25,7 @@ from backend.aeon.api.routes import metrics_api as metrics_router
 from backend.aeon.api.routes import learning_api as learning_router
 from backend.aeon.api.routes import system as system_router
 from backend.aeon.api.routes import models_api as models_router
+from backend.aeon.api.routes import adaptive_api as adaptive_router
 
 def create_app(
     *, 
@@ -90,6 +91,7 @@ def create_app(
     app.include_router(learning_router.router,   prefix="/api/v1")
     app.include_router(system_router.router,     prefix="/api/v1")
     app.include_router(models_router.router,     prefix="/api/v1")
+    app.include_router(adaptive_router.router,   prefix="/api/v1")
 
     from backend.aeon.api.routes import gateway as gateway_router
     app.include_router(gateway_router.router)  # Mounted at root for /ws/device

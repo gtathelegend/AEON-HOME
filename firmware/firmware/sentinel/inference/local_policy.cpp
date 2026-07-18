@@ -40,8 +40,9 @@ void LocalPolicy::evaluate(const SensorReading* reading, AeonState* state) {
 
     // 3. Simple threshold overlay rule
     bool temp_anomaly = (!_temp_suppressed) && (reading->temperature > state->theta);
+    bool comfort_deviation = (reading->temperature > (state->preferred_temp + 3.0f));
     bool motion_active = (!_motion_suppressed) && reading->motion;
 
     // Turn LED on if alert condition, off otherwise
-    _actuators.setLed(temp_anomaly || motion_active);
+    _actuators.setLed(temp_anomaly || motion_active || comfort_deviation);
 }

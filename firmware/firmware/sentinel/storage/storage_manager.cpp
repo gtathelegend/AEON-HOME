@@ -148,6 +148,10 @@ void StorageManager::applyDefaults(AeonState* state) {
     state->learning_buffer_head  = 0;
     state->learning_buffer_count = 0;
 
+    // ── User Profile preferences (v4 fields) ──────────────────────────────────
+    state->preferred_temp        = 21.0f;
+    state->profile_version       = 0;
+
     state->crc32                = 0;
 }
 

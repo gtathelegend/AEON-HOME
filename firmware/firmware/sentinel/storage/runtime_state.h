@@ -67,6 +67,10 @@ struct AeonState {
     uint16_t learning_buffer_head;   // Write-head index in the ring buffer
     uint16_t learning_buffer_count;  // Number of valid records in the buffer
 
+    // ── User Profile preferences (added v4 / STORAGE_MAGIC 0xAE06) ───────────
+    float    preferred_temp;         // User preferred temperature in °C
+    uint32_t profile_version;        // Version of the loaded user profile
+
     // ── Integrity (always last) ───────────────────────────────────────────────
     uint32_t crc32;              // CRC32 over all preceding fields (zeroed for calc)
 };
@@ -95,7 +99,10 @@ struct AeonState {
 //   _pad1                1
 //   learning_buffer_head 2
 //   learning_buffer_count 2
+//   preferred_temp       4
+//   profile_version      4
 //   crc32                4
 //                     ----
-//   TOTAL               58 bytes
-static_assert(sizeof(AeonState) == 58, "AeonState layout changed — update STORAGE_SLOT layout and STORAGE_MAGIC");
+//   TOTAL               66 bytes
+static_assert(sizeof(AeonState) == 66, "AeonState layout changed — update STORAGE_SLOT layout and STORAGE_MAGIC");
+

@@ -8,8 +8,11 @@
 AeonProtocol::AeonProtocol(ITransport& transport)
     : _transport(transport) {}
 
-void AeonProtocol::sendSensorUpdate(const SensorReading* reading, uint32_t seq, uint32_t model_v) {
-    StaticJsonDocument<256> doc;
+void AeonProtocol::sendSensorUpdate(const SensorReading* reading, uint32_t seq, uint32_t model_v,
+                                      uint32_t profile_v, float pref_temp,
+                                      const char* activity, const char* policy,
+                                      float confidence) {
+    StaticJsonDocument<384> doc;
     doc["protocol_version"] = PROTOCOL_VERSION;
     doc["typ"] = "sensor_update";
     doc["device_id"] = DEVICE_ID;
@@ -18,8 +21,13 @@ void AeonProtocol::sendSensorUpdate(const SensorReading* reading, uint32_t seq, 
     doc["humidity"] = reading->humidity;
     doc["motion"] = reading->motion ? 1 : 0;
     doc["model_v"] = model_v;
+    doc["profile_v"] = profile_v;
+    doc["pref_temp"] = pref_temp;
+    doc["activity"] = activity;
+    doc["policy"] = policy;
+    doc["confidence"] = confidence;
 
-    char buffer[256];
+    char buffer[384];
     serializeJson(doc, buffer);
     sendRaw(buffer);
 }

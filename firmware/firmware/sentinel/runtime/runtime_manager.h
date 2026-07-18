@@ -44,6 +44,12 @@ public:
     void handleDeploymentRollback(const char* json_str);
     void handleStatisticsRequest(const char* json_str);
 
+    // ── Adaptive Intelligence Handlers (Commit 4) ────────────────────────────
+    void handleProfileUpdate(const char* json_str);
+    void handleDecisionUpdate(const char* json_str);
+    void handleContextSummary(const char* json_str);
+    void handleActivitySummary(const char* json_str);
+
 private:
     // Subsystem instances
     StorageManager    _storage;
@@ -63,6 +69,11 @@ private:
     DeviceRegistry    _device_registry;
     SecurityManager   _security;
     HealthMonitor     _health;
+
+    // Transient Adaptive State for Telemetry
+    char     _current_activity[32];
+    char     _selected_policy[32];
+    float    _decision_confidence;
 
     // Timestamps for interval tracking (millis-based)
     uint32_t _last_stats_flush_ms;

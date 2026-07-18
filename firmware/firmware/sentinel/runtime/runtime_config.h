@@ -50,7 +50,7 @@
 #define MSG_QUEUE_ENTRY_LEN    512    // Max bytes per queued message
 
 // ── Storage (Flash EEPROM Emulation) ─────────────────────────────────────────
-#define STORAGE_MAGIC          0xAE05  // v3: extended AeonState (58 bytes). Rejects old v1/v2 flash.
+#define STORAGE_MAGIC          0xAE06  // v4: extended AeonState with user profile (66 bytes)
 #define STORAGE_SLOT_A         0       // Primary ping-pong slot index
 #define STORAGE_SLOT_B         1       // Secondary ping-pong slot index
 #define STORAGE_MAX_WRITES     50000   // STM32U5 enhanced flash write endurance
