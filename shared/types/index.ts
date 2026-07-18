@@ -108,3 +108,26 @@ export interface MigrationExport {
   user_id: string;
   profile: UserProfile;
 }
+
+// ── API Graph Edge (as returned by /api/v1/graph/edges) ─────────────────────────
+
+export interface ApiGraphEdge {
+  src:  string;
+  dst:  string;
+  rel?: string;
+  [key: string]: unknown;
+}
+
+// ── Shared Protocol Constants ──────────────────────────────────────────────────
+
+export const AEON_MAGIC_0 = 0xAE;
+export const AEON_MAGIC_1 = 0x01;
+
+export const AEON_TYPE_FEATURE_FRAME = 0x01;
+export const AEON_TYPE_EVENT         = 0x02;
+export const AEON_TYPE_COMMAND       = 0x10;
+export const AEON_TYPE_ACK           = 0xFF;
+
+export const DEFAULT_BAUD_RATE = 115200;
+export const DEFAULT_DEVICE_ID = "aeon-home-001";
+
