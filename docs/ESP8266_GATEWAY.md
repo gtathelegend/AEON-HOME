@@ -24,3 +24,17 @@ The ESP8266 bridges this gap by relaying UART (serial) commands over Wi-Fi via W
 **Required Libraries:**
 - `WebSockets` by Markus Sattler (install via Arduino Library Manager)
 - `ArduinoJson` by Benoit Blanchon
+
+## Pin Mappings
+
+To establish serial communication between the Arduino Sentinel MCU and the ESP8266 Wi-Fi Gateway:
+
+| ESP8266 Pin | Pin Function | Arduino Pin | Pin Function | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **D5 (GPIO 14)** | Software RX | **D6** | Software TX | Receives data from Arduino |
+| **D6 (GPIO 12)** | Software TX | **D5** | Software RX | Transmits data to Arduino |
+| **GND** | Ground Reference | **GND** | Ground Reference | Common ground reference (CRITICAL for serial stability) |
+
+> [!WARNING]
+> Ensure a common ground wire connects the ESP8266 GND pin and the Arduino GND pin. Without this, serial communication will experience framing errors and transmission failure.
+
