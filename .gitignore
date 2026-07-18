@@ -1,0 +1,30 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.idea/
+*.iml
+
+# Hub runtime state. All of it regenerates -- `python run.py --reset` rebuilds
+# data/ from scratch, which is what you want before a demo anyway. Ignore the
+# whole directory: SQLite also writes -wal/-shm siblings and the checkpoint
+# rotates to .1/.2/.3, and none of those match a *.db or *.ckpt pattern.
+data/
+hub.out
+hub.err
+p1.out
+p1.err
+*.ckpt
+*.ckpt.[0-9]
+*.onnx
+spool.jsonl
+
+# Model build artefacts
+build/
+
+# Android
+AEON app/build/
+AEON app/app/build/
+AEON app/.gradle/
+AEON app/local.properties
+local.properties

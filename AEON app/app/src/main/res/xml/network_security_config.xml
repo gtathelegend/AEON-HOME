@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The hub is a plain WebSocket on the home WiFi (ws://192.168.x.x:8800), so
+  cleartext has to be permitted. Android's network security config matches on
+  domains, not CIDR ranges, and the hub's address is not known until someone
+  types it in, so this cannot be narrowed to private ranges here.
+
+  Sarvam STT/TTS are HTTPS regardless. Nothing sensitive rides the cleartext
+  channel, and that channel never leaves the house.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

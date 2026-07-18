@@ -1,0 +1,10 @@
+# Copy to local.properties and fill in. local.properties is gitignored.
+#
+# sdk.dir is written by Android Studio the first time you open the project.
+# sdk.dir=C\:\\Users\\you\\AppData\\Local\\Android\\Sdk
+
+# Sarvam API key for STT (Saarika/Saaras) and TTS (Bulbul).
+# Get one at https://dashboard.sarvam.ai
+# The app builds and runs without it -- the mic is disabled and the tiles,
+# sliders and typed input still work.
+sarvam.key=your_key_here

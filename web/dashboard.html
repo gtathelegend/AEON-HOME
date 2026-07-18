@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ÆON Home — Hub</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="shell">
+
+  <header>
+    <div class="wordmark"><b>ÆON</b> HOME <span>·</span> HUB</div>
+    <div class="clock"><span id="clock">--:--</span><small id="clock-day">---</small></div>
+    <div class="spacer"></div>
+
+    <div class="hdr-stat">
+      <div class="label">Room</div>
+      <div class="v"><span id="hdr-temp">--</span> <span class="dim">·</span> <span id="hdr-occ">--</span></div>
+    </div>
+    <div class="hdr-stat">
+      <div class="label">Node</div>
+      <div class="v"><span class="dot live" id="node-dot"></span><span id="node-text">connecting</span></div>
+    </div>
+  </header>
+
+  <div class="rule"></div>
+
+  <main>
+    <div class="col left">
+
+      <section>
+        <div class="sec-head">
+          <div class="label">Devices</div>
+          <div class="label">Leaves · dumb actuators, no model</div>
+        </div>
+        <div class="devices" id="devices"></div>
+      </section>
+
+      <section>
+        <div class="sec-head">
+          <div class="label">Live log</div>
+          <div class="label">One command · two destinations</div>
+        </div>
+        <div class="log" id="log"></div>
+      </section>
+
+    </div>
+
+    <div class="col right">
+      <section>
+
+        <div class="label">Model</div>
+        <div class="version">v<span id="p-ver">0</span></div>
+        <dl class="kv">
+          <dt>CV AUC</dt>      <dd class="big" id="p-auc">--</dd>
+          <dt>Artefact</dt>    <dd id="p-size">--</dd>
+          <dt>Cloud bytes</dt> <dd class="big" id="p-cloud">0</dd>
+        </dl>
+        <div id="spool-row" style="display:none">
+          <dl class="kv" style="margin-top:9px">
+            <dt>Spooled</dt><dd class="big" id="p-spool">0</dd>
+          </dl>
+        </div>
+
+        <div class="rule" style="margin:20px 0"></div>
+
+        <div class="btn-row">
+          <button data-send='{"typ":"retrain"}'>Retrain &amp; deploy</button>
+          <button data-send='{"typ":"toggle_pc"}' id="btn-pc">Cut PC link</button>
+          <button data-send='{"typ":"attack","mode":"unsigned"}'>Unsigned command</button>
+          <button data-send='{"typ":"attack","mode":"tampered"}'>Tampered command</button>
+          <button data-send='{"typ":"pause"}'>Pause clock</button>
+        </div>
+
+        <div class="rule" style="margin:20px 0"></div>
+
+        <div class="label" style="margin-bottom:6px">Learned</div>
+        <ul class="learned" id="learned"></ul>
+
+      </section>
+    </div>
+  </main>
+
+</div>
+<script src="/static/dashboard.js"></script>
+</body>
+</html>

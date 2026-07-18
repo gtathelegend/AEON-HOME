@@ -1,0 +1,2 @@
+- [ÆON hackathon deadline](aeon-hackathon-deadline.md) — submission due 2026-07-19 1PM IST, 5-min demo, judging split.
+- [ÆON phase plan](aeon-phase-plan.md) — Phase 1/2/3 order and the HubState seam that keeps the UI untouched.
