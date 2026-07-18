@@ -152,6 +152,10 @@ void StorageManager::applyDefaults(AeonState* state) {
     state->preferred_temp        = 21.0f;
     state->profile_version       = 0;
 
+    // ── Learning stats (v5 fields) ──────────────────────────────────────────
+    state->dream_run_count       = 0;
+    state->feedback_count        = 0;
+
     state->crc32                = 0;
 }
 

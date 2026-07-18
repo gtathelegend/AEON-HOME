@@ -50,6 +50,19 @@ public:
     /** Report learning buffer fill level. */
     void sendLearningBufferStatus(uint16_t count, uint16_t capacity);
 
+    // ── Cognitive/Dream State messages (added Commit 6) ─────────────────────
+    void sendDreamStarted();
+    void sendDreamCompleted(uint32_t duration_ms, uint16_t consolidated_memories);
+    void sendDreamInterrupted(const char* interrupt_reason);
+    void sendLearningSummary(float overall_score, uint16_t feedback_count);
+    void sendFeedbackReceived(const char* feedback_type, const char* target, float value);
+    void sendRecommendationGenerated(const char* rec_id, const char* description);
+    void sendKnowledgeUpdated(uint16_t node_count);
+    void sendPreferenceUpdated(const char* pref_name, float value);
+    void sendPolicyAdapted(const char* policy_name, float new_weight);
+    void sendExperienceStored(const char* exp_id, bool success);
+    void sendRuntimeEvaluation(float decision_quality, float override_freq);
+
 private:
     ITransport& _transport;
 };

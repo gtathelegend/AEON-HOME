@@ -71,6 +71,10 @@ struct AeonState {
     float    preferred_temp;         // User preferred temperature in °C
     uint32_t profile_version;        // Version of the loaded user profile
 
+    // ── Learning stats (added v5 / STORAGE_MAGIC 0xAE07) ──────────────────────
+    uint16_t dream_run_count;        // Count of completed dream state optimization runs
+    uint16_t feedback_count;         // Count of feedback items parsed
+
     // ── Integrity (always last) ───────────────────────────────────────────────
     uint32_t crc32;              // CRC32 over all preceding fields (zeroed for calc)
 };
@@ -101,8 +105,10 @@ struct AeonState {
 //   learning_buffer_count 2
 //   preferred_temp       4
 //   profile_version      4
+//   dream_run_count      2
+//   feedback_count       2
 //   crc32                4
 //                     ----
-//   TOTAL               66 bytes
-static_assert(sizeof(AeonState) == 66, "AeonState layout changed — update STORAGE_SLOT layout and STORAGE_MAGIC");
+//   TOTAL               70 bytes
+static_assert(sizeof(AeonState) == 70, "AeonState layout changed — update STORAGE_SLOT layout and STORAGE_MAGIC");
 

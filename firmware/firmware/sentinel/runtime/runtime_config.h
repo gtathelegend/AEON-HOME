@@ -28,6 +28,7 @@
 #define INTERVAL_HEARTBEAT_MS     5000   // Heartbeat packet (every 10 samples)
 #define INTERVAL_HEALTH_MS        10000  // Health status report
 #define INTERVAL_DEVICE_POLL_MS   15000  // Device registry liveness poll
+#define INTERVAL_DREAM_MS         2000   // Dream eligibility check interval
 #define INTERVAL_DEPLOY_CHECK_MS  30000  // Deployment availability check
 
 // ── Protocol ──────────────────────────────────────────────────────────────────
@@ -50,7 +51,7 @@
 #define MSG_QUEUE_ENTRY_LEN    512    // Max bytes per queued message
 
 // ── Storage (Flash EEPROM Emulation) ─────────────────────────────────────────
-#define STORAGE_MAGIC          0xAE06  // v4: extended AeonState with user profile (66 bytes)
+#define STORAGE_MAGIC          0xAE07  // v5: extended AeonState with learning/dream statistics (70 bytes)
 #define STORAGE_SLOT_A         0       // Primary ping-pong slot index
 #define STORAGE_SLOT_B         1       // Secondary ping-pong slot index
 #define STORAGE_MAX_WRITES     50000   // STM32U5 enhanced flash write endurance

@@ -20,6 +20,8 @@
 #include "../devices/device_registry.h"
 #include "../security/security_manager.h"
 #include "../health/health_monitor.h"
+#include "../inference/learning_engine.h"
+#include "../inference/dream_state.h"
 
 class RuntimeManager {
 public:
@@ -78,6 +80,8 @@ private:
     DeviceRegistry    _device_registry;
     SecurityManager   _security;
     HealthMonitor     _health;
+    LearningEngine    _learning_engine;
+    DreamState        _dream_state;
 
     // Transient Adaptive State for Telemetry
     char     _current_activity[32];
@@ -88,6 +92,7 @@ private:
     uint32_t _last_stats_flush_ms;
     uint32_t _last_buffer_flush_ms;
     uint32_t _model_activated_at_ms;
+    uint32_t _last_activity_ms;
 
     // Scheduled task callbacks (delegated to static helpers)
     static void onSampleTask(void* context);
@@ -97,6 +102,7 @@ private:
     static void onDeviceRegistryPollTask(void* context);
     static void onStatisticsFlushTask(void* context);
     static void onLearningBufferFlushTask(void* context);
+    static void onDreamTask(void* context);
 
     // Boot pipeline stages
     bool stage01_hardware_init();

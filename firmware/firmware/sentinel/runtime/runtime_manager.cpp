@@ -41,7 +41,10 @@ RuntimeManager::RuntimeManager()
       _health(_transport),
       _last_stats_flush_ms(0),
       _last_buffer_flush_ms(0),
-      _model_activated_at_ms(0)
+      _model_activated_at_ms(0),
+      _learning_engine(_protocol),
+      _dream_state(_protocol),
+      _last_activity_ms(0)
 {
     strcpy(_current_activity, "Idle");
     strcpy(_selected_policy, "background_policy");
@@ -57,6 +60,10 @@ void RuntimeManager::tick() {
     char rx_buf[MAX_CMD_PAYLOAD];
     int len = _transport.receive(rx_buf, sizeof(rx_buf));
     if (len > 0) {
+        _last_activity_ms = millis();
+        if (_dream_state.getState() == DreamState::DREAM_RUNNING) {
+            _dream_state.interrupt("inbound_serial_command");
+        }
         _router.route(rx_buf);
     }
 
@@ -189,6 +196,7 @@ bool RuntimeManager::stage10_scheduler_init() {
     // New tasks (Commit 3)
     _scheduler.registerTask(STATISTICS_FLUSH_INTERVAL_MS,  onStatisticsFlushTask,      this);
     _scheduler.registerTask(LEARNING_BUFFER_FLUSH_MS,       onLearningBufferFlushTask,  this);
+    _scheduler.registerTask(INTERVAL_DREAM_MS,              onDreamTask,                this);
 
     Serial.println("[BOOT] Stage 10: Scheduler Initialized [OK]");
     return true;
@@ -267,6 +275,14 @@ void RuntimeManager::onSampleTask(void* context) {
                 mgr->_state.model_v
             );
         }
+
+        // Evaluate decision via learning engine
+        mgr->_learning_engine.evaluateDecision(
+            mgr->_selected_policy,
+            result.confidence.final_confidence,
+            result.success,
+            &mgr->_state
+        );
     }
 
     // Evaluate fallback policy locally
@@ -645,5 +661,26 @@ void RuntimeManager::handleConfidenceBreakdown(const char* json_str) {
     Serial.print("[Cognitive] ConfidenceBreakdown overall: ");
     Serial.println(overall);
 }
+
+void RuntimeManager::onDreamTask(void* context) {
+    RuntimeManager* mgr = static_cast<RuntimeManager*>(context);
+    if (!mgr) return;
+
+    // Check dream eligibility (idle and not deploying)
+    bool eligible = mgr->_dream_state.checkEligibility(
+        mgr->_last_activity_ms,
+        false, // deployment_active placeholder
+        true   // queue_empty placeholder
+    );
+
+    if (eligible && mgr->_dream_state.getState() == DreamState::DREAM_IDLE) {
+        mgr->_dream_state.start();
+    }
+
+    if (mgr->_dream_state.getState() == DreamState::DREAM_RUNNING) {
+        mgr->_dream_state.tick(&mgr->_state);
+    }
+}
+
 
 
