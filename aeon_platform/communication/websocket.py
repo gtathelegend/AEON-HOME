@@ -548,6 +548,12 @@ class WebSocketBus:
                 "edgesCount": edge_count,
                 "lastNodeAdded": last_node,
             },
+            "cognitiveStatus": {
+                "latestDecision": self.policy._latest_decision if (self.policy and hasattr(self.policy, "_latest_decision")) else None,
+                "memoryUsage": self.policy.cognitive_memory.get_statistics() if (self.policy and hasattr(self.policy, "cognitive_memory")) else {},
+                "explanationAvailable": True if (self.policy and hasattr(self.policy, "_latest_decision") and self.policy._latest_decision.get("explanation")) else False,
+                "reasoningLatencyMs": round(self.policy._latest_decision.get("latency_ms", 0.0), 2) if (self.policy and hasattr(self.policy, "_latest_decision") and "latency_ms" in self.policy._latest_decision) else 0.0,
+            },
             "migrationState": {
                 "status": "idle",
                 "qrCodePayload": f"aeon://identity/v1/export?device={settings.device_id}",

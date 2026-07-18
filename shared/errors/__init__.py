@@ -9,6 +9,16 @@ from shared.errors.model_errors import (
     RollbackError,
     LearningBufferError,
 )
+from shared.errors.cognitive_errors import (
+    CognitiveError,
+    ReasoningError,
+    MemoryError,
+    KnowledgeError,
+    ExplanationError,
+    DeviceRegistryError,
+    EvidenceError,
+    ConfidenceError,
+)
 
 __all__ = [
     "ModelLoadError",
@@ -19,4 +29,12 @@ __all__ = [
     "StatisticsError",
     "RollbackError",
     "LearningBufferError",
+    "CognitiveError",
+    "ReasoningError",
+    "MemoryError",
+    "KnowledgeError",
+    "ExplanationError",
+    "DeviceRegistryError",
+    "EvidenceError",
+    "ConfidenceError",
 ]

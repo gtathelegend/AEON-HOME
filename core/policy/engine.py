@@ -24,13 +24,20 @@ from core.reasoning.activity_engine import ActivityEngine
 from core.profiles.profile_engine import ProfileEngine
 from core.policy.policy_engine import PolicyEnginePipeline
 
+# Cognitive Subsystems
+from core.reasoning.reasoning_engine import ReasoningEngine
+from core.reasoning.explainability_engine import ExplainabilityEngine
+from core.memory.cognitive_memory import CognitiveMemory
+from core.registry.devices import DeviceRegistry
+from core.registry.knowledge_base import RuntimeKnowledgeBase
+
 log = logging.getLogger(__name__)
 
 
 class PolicyEngine:
     """
-    Core decision loop wrapper aligning legacy interfaces with the new
-    Context, Activity, User Profile, and Policy Pipeline Engines.
+    Core decision loop wrapper implementing the new Decision Pipeline:
+    Context -> Activity -> Policy Evaluation -> Reasoning Engine -> Decision -> Explainability -> Memory Update -> Device Execution -> Telemetry
     """
 
     def __init__(
@@ -40,6 +47,7 @@ class PolicyEngine:
         memory: Any,
         ws_bus: Any,
         serial_writer: Any,
+        device_registry: Any = None,
     ) -> None:
         self._qnn    = qnn
         self._graph  = graph
@@ -65,6 +73,30 @@ class PolicyEngine:
 
         # ── 4. Policy Engine Pipeline Setup ──
         self.policy_pipeline = PolicyEnginePipeline(ws_bus=ws_bus)
+
+        # ── 5. Reasoning Engine Setup ──
+        self.reasoning_engine = ReasoningEngine()
+
+        # ── 6. Explainability Engine Setup ──
+        self.explainability_engine = ExplainabilityEngine()
+
+        # ── 7. Cognitive Memory Setup ──
+        self.cognitive_memory = CognitiveMemory()
+
+        # ── 8. Device Registry Setup ──
+        self.device_registry = device_registry or DeviceRegistry(graph=graph, ws_bus=ws_bus)
+
+        # ── 9. Runtime Knowledge Base Setup ──
+        self.knowledge_base = RuntimeKnowledgeBase(
+            context_engine=self.context_engine,
+            activity_engine=self.activity_engine,
+            profile_engine=self.profile_engine,
+            policy_engine=self,
+            cognitive_memory=self.cognitive_memory,
+            device_registry=self.device_registry,
+        )
+
+        self._latest_decision: Dict[str, Any] = {}
 
     async def on_feature_frame(self, frame: FeatureFrame) -> None:
         """Called by SerialBridge on every decoded frame. Non-blocking."""
@@ -93,22 +125,31 @@ class PolicyEngine:
     async def _infer(self, frame: FeatureFrame) -> PolicyDecision:
         start_t = time.perf_counter()
 
-        # ── Step A: Run QNN Models (Maintains NPU verification & mocks) ──
+        # ── Step A: Run QNN Models ──
         feature_vec = np.array([[
             frame.temperature, frame.humidity,
             float(frame.motion), float(frame.door_open),
             frame.mean_temp, frame.var_temp, frame.delta_motion,
         ]], dtype=np.float32)
 
-        presence_out = await self._qnn.infer(
-            "presence_classifier", {"input": feature_vec}
-        )
-        presence_prob = float(presence_out.get("output", np.array([[0.5, 0.5]]))[0, 1])
+        presence_prob = 0.5
+        anomaly_score = 0.0
 
-        anomaly_out  = await self._qnn.infer(
-            "anomaly_detector", {"input": feature_vec}
-        )
-        anomaly_score = float(anomaly_out.get("output", np.array([[0.0]]))[0, 0])
+        try:
+            presence_out = await self._qnn.infer(
+                "presence_classifier", {"input": feature_vec}
+            )
+            presence_prob = float(presence_out.get("output", np.array([[0.5, 0.5]]))[0, 1])
+        except Exception:
+            pass
+
+        try:
+            anomaly_out  = await self._qnn.infer(
+                "anomaly_detector", {"input": feature_vec}
+            )
+            anomaly_score = float(anomaly_out.get("output", np.array([[0.0]]))[0, 0])
+        except Exception:
+            pass
 
         # ── Step B: Execute Context Engine ──
         context = await self.context_engine.get_current_context()
@@ -120,19 +161,79 @@ class PolicyEngine:
         user_id = context.get("user", {}).get("active_user_id", "default_user")
         profile = await self.profile_engine.get_profile(user_id)
 
-        # ── Step E: Execute Policy Pipeline ──
-        decision_dict = await self.policy_pipeline.evaluate_policies(
+        # ── Step E: Evaluate Policies to generate Candidate Decisions ──
+        candidates = []
+        for p in self.policy_pipeline._policies:
+            res = await p.evaluate(context, activity, profile)
+            if res:
+                candidates.append({
+                    "action": res["action"],
+                    "policy": p.identifier,
+                    "reason": res["reason"],
+                    "confidence": res.get("confidence", 0.5),
+                    "priority": p.priority,
+                })
+        
+        # Include baseline fallback
+        candidates.append({
+            "action": "no_action",
+            "policy": "background_policy",
+            "reason": "NOMINAL_BACKGROUND_FALLBACK",
+            "confidence": 0.50,
+            "priority": 1,
+        })
+
+        # Include QNN automation suggestions
+        if anomaly_score > 0.85:
+            candidates.append({
+                "action": "notify",
+                "policy": "automation_policy",
+                "reason": f"AUTOMATION_ANOMALY_ALARM: score={anomaly_score:.2f}",
+                "confidence": anomaly_score,
+                "priority": 3,
+            })
+        elif presence_prob > 0.75:
+            candidates.append({
+                "action": "notify",
+                "policy": "automation_policy",
+                "reason": f"AUTOMATION_PRESENCE_DETECTED: prob={presence_prob:.2f}",
+                "confidence": presence_prob,
+                "priority": 3,
+            })
+
+        # ── Step F: Run Reasoning Engine (Rank, DAG, Evidence, final decision dict) ──
+        decision_dict = await self.reasoning_engine.reason(
             context=context,
             activity=activity,
             profile=profile,
-            system_state={},
+            policies=self.policy_pipeline._policies,
+            candidate_decisions=candidates,
             model_output={
                 "presence_prob": presence_prob,
                 "anomaly_score": anomaly_score,
             },
+            device_registry=self.device_registry,
         )
 
+        # ── Step G: Run Explainability Engine ──
+        explanation = self.explainability_engine.explain(
+            decision=decision_dict,
+            context=context,
+            activity=activity,
+            profile=profile,
+        )
+        decision_dict["explanation"] = explanation.to_dict()
+
+        # Cache latest decision
+        self._latest_decision = decision_dict
+
+        # ── Step H: Cognitive Memory Update ──
+        self.cognitive_memory.store_memory("decision", decision_dict)
+        self.cognitive_memory.store_memory("context", context)
+        self.cognitive_memory.store_memory("activity", activity)
+
         latency_ms = (time.perf_counter() - start_t) * 1000
+        decision_dict["latency_ms"] = latency_ms
 
         # Construct compatible PolicyDecision object
         return PolicyDecision(
@@ -202,6 +303,10 @@ class PolicyEngine:
             "latency_ms": decision.latency_ms,
         })
         
+        # Publish rich cognitive decision payload
+        if self._ws_bus:
+            await self._ws_bus.publish("cognitive_decision", self._latest_decision)
+
         log.debug("policy.decision", action=decision.action,
                   conf=f"{decision.confidence:.2f}", seq=decision.frame_seq,
                   latency_ms=f"{decision.latency_ms:.2f}")

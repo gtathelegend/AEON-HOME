@@ -50,6 +50,15 @@ public:
     void handleContextSummary(const char* json_str);
     void handleActivitySummary(const char* json_str);
 
+    // ── Cognitive OS Handlers (Commit 5) ─────────────────────────────────────
+    void handleDecisionGenerated(const char* json_str);
+    void handleExplanationGenerated(const char* json_str);
+    void handleMemoryUpdated(const char* json_str);
+    void handleReasoningCompleted(const char* json_str);
+    void handleDeviceHealthUpdated(const char* json_str);
+    void handleKnowledgeUpdated(const char* json_str);
+    void handleConfidenceBreakdown(const char* json_str);
+
 private:
     // Subsystem instances
     StorageManager    _storage;

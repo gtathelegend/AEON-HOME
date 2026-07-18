@@ -22,6 +22,13 @@ static void routerCallback(const char* typ, const char* json_str, void* context)
     else if (strcmp(typ, "decision_update")      == 0) mgr->handleDecisionUpdate(json_str);
     else if (strcmp(typ, "context_summary")      == 0) mgr->handleContextSummary(json_str);
     else if (strcmp(typ, "activity_summary")     == 0) mgr->handleActivitySummary(json_str);
+    else if (strcmp(typ, "decision_generated")   == 0) mgr->handleDecisionGenerated(json_str);
+    else if (strcmp(typ, "explanation_generated")== 0) mgr->handleExplanationGenerated(json_str);
+    else if (strcmp(typ, "memory_updated")       == 0) mgr->handleMemoryUpdated(json_str);
+    else if (strcmp(typ, "reasoning_completed")  == 0) mgr->handleReasoningCompleted(json_str);
+    else if (strcmp(typ, "device_health_updated")== 0) mgr->handleDeviceHealthUpdated(json_str);
+    else if (strcmp(typ, "knowledge_updated")    == 0) mgr->handleKnowledgeUpdated(json_str);
+    else if (strcmp(typ, "confidence_breakdown") == 0) mgr->handleConfidenceBreakdown(json_str);
 }
 
 // ── Constructor ──────────────────────────────────────────────────────────────
@@ -157,6 +164,13 @@ bool RuntimeManager::stage09_policy_init() {
     _router.registerHandler("decision_update",      routerCallback, this);
     _router.registerHandler("context_summary",      routerCallback, this);
     _router.registerHandler("activity_summary",     routerCallback, this);
+    _router.registerHandler("decision_generated",   routerCallback, this);
+    _router.registerHandler("explanation_generated",routerCallback, this);
+    _router.registerHandler("memory_updated",       routerCallback, this);
+    _router.registerHandler("reasoning_completed",  routerCallback, this);
+    _router.registerHandler("device_health_updated",routerCallback, this);
+    _router.registerHandler("knowledge_updated",    routerCallback, this);
+    _router.registerHandler("confidence_breakdown", routerCallback, this);
 
     Serial.println("[BOOT] Stage 9: Policy Engine Initialized [OK]");
     return true;
@@ -553,4 +567,83 @@ void RuntimeManager::handleActivitySummary(const char* json_str) {
     Serial.print("[Activity] Current: ");
     Serial.println(_current_activity);
 }
+
+void RuntimeManager::handleDecisionGenerated(const char* json_str) {
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, json_str);
+    if (error) return;
+
+    const char* id = doc["decision_id"] | "unknown";
+    const char* action = doc["winning_action"] | "no_action";
+    Serial.print("[Cognitive] DecisionGenerated ID: ");
+    Serial.print(id);
+    Serial.print(", Action: ");
+    Serial.println(action);
+}
+
+void RuntimeManager::handleExplanationGenerated(const char* json_str) {
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, json_str);
+    if (error) return;
+
+    const char* summary = doc["summary"] | "No summary";
+    Serial.print("[Cognitive] Explanation: ");
+    Serial.println(summary);
+}
+
+void RuntimeManager::handleMemoryUpdated(const char* json_str) {
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, json_str);
+    if (error) return;
+
+    const char* cat = doc["category"] | "general";
+    Serial.print("[Cognitive] MemoryUpdated category: ");
+    Serial.println(cat);
+}
+
+void RuntimeManager::handleReasoningCompleted(const char* json_str) {
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, json_str);
+    if (error) return;
+
+    float latency = doc["latency_ms"] | 0.0f;
+    Serial.print("[Cognitive] ReasoningCompleted in ");
+    Serial.print(latency);
+    Serial.println(" ms");
+}
+
+void RuntimeManager::handleDeviceHealthUpdated(const char* json_str) {
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, json_str);
+    if (error) return;
+
+    const char* id = doc["device_id"] | "unknown";
+    const char* status = doc["health"] | "healthy";
+    Serial.print("[Cognitive] DeviceHealthUpdated: ");
+    Serial.print(id);
+    Serial.print(" is ");
+    Serial.println(status);
+}
+
+void RuntimeManager::handleKnowledgeUpdated(const char* json_str) {
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, json_str);
+    if (error) return;
+
+    int nodes = doc["nodes"] | 0;
+    Serial.print("[Cognitive] KnowledgeUpdated: ");
+    Serial.print(nodes);
+    Serial.println(" nodes in graph");
+}
+
+void RuntimeManager::handleConfidenceBreakdown(const char* json_str) {
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, json_str);
+    if (error) return;
+
+    float overall = doc["overall"] | 1.0f;
+    Serial.print("[Cognitive] ConfidenceBreakdown overall: ");
+    Serial.println(overall);
+}
+
 

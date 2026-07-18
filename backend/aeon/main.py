@@ -72,6 +72,7 @@ async def main() -> None:
         memory=memory,
         ws_bus=ws_bus,
         serial_writer=serial_writer,
+        device_registry=device_registry,
     )
 
     from backend.aeon.voice.manager import ConversationManager
@@ -83,6 +84,8 @@ async def main() -> None:
     ws_bus.model_manager    = model_manager
     ws_bus.learning_loop    = learning_loop
     ws_bus.policy           = policy
+    ws_bus.device_registry  = device_registry
+    ws_bus.serial_bridge    = serial_writer
     ws_bus.voice_manager    = voice_manager
     ws_bus.sensor_processor = sensor_processor
     ws_bus.graph            = graph        # for real node/edge counts

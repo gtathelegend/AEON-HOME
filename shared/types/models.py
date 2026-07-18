@@ -336,3 +336,90 @@ class ConfidenceReport:
             "explanation":           self.explanation,
         }
 
+
+@dataclass
+class EvidenceItem:
+    source: str
+    timestamp: str
+    weight: float
+    confidence: float
+    reliability: float
+    description: str
+
+    def to_dict(self) -> dict:
+        return {
+            "source": self.source,
+            "timestamp": self.timestamp,
+            "weight": self.weight,
+            "confidence": self.confidence,
+            "reliability": self.reliability,
+            "description": self.description,
+        }
+
+
+@dataclass
+class AlternativeAction:
+    action: str
+    score: float
+    policy: str
+    reason: str
+
+    def to_dict(self) -> dict:
+        return {
+            "action": self.action,
+            "score": self.score,
+            "policy": self.policy,
+            "reason": self.reason,
+        }
+
+
+@dataclass
+class ConfidenceBreakdown:
+    context_confidence: float
+    activity_confidence: float
+    policy_confidence: float
+    model_confidence: float
+    reasoning_confidence: float
+    overall_confidence: float
+
+    def to_dict(self) -> dict:
+        return {
+            "context_confidence": self.context_confidence,
+            "activity_confidence": self.activity_confidence,
+            "policy_confidence": self.policy_confidence,
+            "model_confidence": self.model_confidence,
+            "reasoning_confidence": self.reasoning_confidence,
+            "overall_confidence": self.overall_confidence,
+        }
+
+
+@dataclass
+class ExplanationModel:
+    decision_summary: str
+    evidence_summary: str
+    selected_policy: str
+    rejected_policies: list[str]
+    primary_context: str
+    primary_activity: str
+    model_contribution: str
+    confidence_summary: ConfidenceBreakdown
+    reason_codes: list[str]
+    suggested_user_feedback: str
+    execution_result: str
+
+    def to_dict(self) -> dict:
+        return {
+            "decision_summary": self.decision_summary,
+            "evidence_summary": self.evidence_summary,
+            "selected_policy": self.selected_policy,
+            "rejected_policies": self.rejected_policies,
+            "primary_context": self.primary_context,
+            "primary_activity": self.primary_activity,
+            "model_contribution": self.model_contribution,
+            "confidence_summary": self.confidence_summary.to_dict(),
+            "reason_codes": self.reason_codes,
+            "suggested_user_feedback": self.suggested_user_feedback,
+            "execution_result": self.execution_result,
+        }
+
+
