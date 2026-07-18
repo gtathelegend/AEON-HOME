@@ -14,8 +14,8 @@ set -euo pipefail
 
 PORT="${1:-/dev/ttyUSB0}"
 FQBN="${2:-arduino:avr:uno}"
-SKETCH="arduino/firmware/sentinel"
-LIBS_SRC="arduino/libraries"
+SKETCH="firmware/firmware/sentinel"
+LIBS_SRC="firmware/libraries"
 ARDUINO_LIB_DIR="${HOME}/Arduino/libraries"
 
 echo "▶ ÆON Sentinel — flash"
