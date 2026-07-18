@@ -1,0 +1,25 @@
+{
+  "name": "ÆON Home — Persistent Intelligence",
+  "short_name": "ÆON Home",
+  "description": "Persistent intelligence fabric across every device.",
+  "start_url": "/dashboard/v2",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f7fb",
+  "theme_color": "#0f0f14",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon",
+      "purpose": "maskable"
+    }
+  ]
+}
