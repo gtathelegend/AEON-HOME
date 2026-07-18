@@ -64,8 +64,6 @@ fun AeonScreen(
     onSend: (String) -> Unit,
     onToggle: (String, Boolean, Double?) -> Unit,
     onLevel: (String, Double) -> Unit,
-    onSetHub: (String, Int) -> Unit,
-    onToggleSettings: () -> Unit,
     onDismissNotice: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -78,11 +76,9 @@ fun AeonScreen(
             .padding(top = 18.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
-        Header(state, onToggleSettings)
-
-        if (state.showSettings) {
-            HubSettings(state, onSetHub)
-        }
+        // No settings sheet. The hub is found by UDP discovery and remembered,
+        // so its address is never something the user has to see, type, or know.
+        Header(state)
 
         state.notice?.let { Notice(it, onDismissNotice) }
 
@@ -138,7 +134,7 @@ fun AeonScreen(
 // ── header ───────────────────────────────────────────────────────────────
 
 @Composable
-private fun Header(state: UiState, onToggleSettings: () -> Unit) {
+private fun Header(state: UiState) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -146,6 +142,8 @@ private fun Header(state: UiState, onToggleSettings: () -> Unit) {
     ) {
         Text("ÆON HOME", style = MaterialTheme.typography.titleMedium, color = Ink)
 
+        // Link state only -- never the address. A dot and the house's clock say
+        // everything the user needs: connected, and showing live data.
         Row(verticalAlignment = Alignment.CenterVertically) {
             Dot(filled = state.linked, online = state.linked)
             Spacer(Modifier.width(8.dp))
@@ -154,53 +152,10 @@ private fun Header(state: UiState, onToggleSettings: () -> Unit) {
                 style = MaterialTheme.typography.labelSmall,
                 color = Ink3,
             )
-            Spacer(Modifier.width(12.dp))
-            TextButton(onClick = onToggleSettings, contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp)) {
-                Text("HUB", style = MaterialTheme.typography.labelSmall, color = Ink)
-            }
         }
     }
 }
 
-@Composable
-private fun HubSettings(state: UiState, onSetHub: (String, Int) -> Unit) {
-    var host by remember(state.host) { mutableStateOf(state.host) }
-    var port by remember(state.port) { mutableStateOf(state.port.toString()) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, Rule2, RoundedCornerShape(2.dp))
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Label("Hub address")
-        Text(
-            "The IP the hub printed on the PC. Same WiFi, no pairing.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Ink3,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(
-                value = host,
-                onValueChange = { host = it },
-                placeholder = { Text("192.168.1.42", color = Ink4) },
-                singleLine = true,
-                modifier = Modifier.weight(2f),
-                textStyle = MaterialTheme.typography.bodyLarge,
-            )
-            OutlinedTextField(
-                value = port,
-                onValueChange = { port = it.filter(Char::isDigit).take(5) },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                textStyle = MaterialTheme.typography.bodyLarge,
-            )
-        }
-        BlockButton("Connect") { onSetHub(host, port.toIntOrNull() ?: 8800) }
-    }
-}
 
 @Composable
 private fun Notice(text: String, onDismiss: () -> Unit) {
@@ -252,20 +207,23 @@ private fun MicBlock(state: UiState, onDown: () -> Unit, onUp: () -> Unit) {
                     .clip(CircleShape)
                     .background(if (listening) Ink else Ground)
                     .border(1.dp, if (listening) Ink else Rule2, CircleShape)
+                    // Tap to start, tap again to stop and send -- not hold.
+                    // Holding a phone against your ear for the length of a
+                    // sentence is fine; holding a finger perfectly still on a
+                    // button while you think of the words is not, and letting go
+                    // early truncates the recording with no way to recover it.
+                    // A tap in Thinking state is ignored: both handlers guard on
+                    // the current mic state.
                     .pointerInput(state.mic) {
                         detectTapGestures(
-                            onPress = {
-                                onDown()
-                                tryAwaitRelease()
-                                onUp()
-                            }
+                            onTap = { if (listening) onUp() else onDown() }
                         )
                     },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_mic),
-                    contentDescription = "Hold to speak",
+                    contentDescription = if (listening) "Tap to stop and send" else "Tap to speak",
                     tint = if (listening) Ground else Ink,
                     modifier = Modifier.size(34.dp),
                 )
@@ -274,10 +232,10 @@ private fun MicBlock(state: UiState, onDown: () -> Unit, onUp: () -> Unit) {
 
         Text(
             when {
-                state.mic == Mic.Listening -> "Listening… release to send"
+                state.mic == Mic.Listening -> "Listening… tap to stop and send"
                 state.mic == Mic.Thinking -> "Transcribing…"
                 state.heard.isNotBlank() -> "“${state.heard}”"
-                else -> "Hold to speak"
+                else -> "Tap to speak"
             },
             style = MaterialTheme.typography.bodyLarge,
             color = if (state.heard.isNotBlank() && state.mic == Mic.Idle) Ink else Ink3,
@@ -383,9 +341,18 @@ private fun DeviceCard(
             onCommit = { dragging = false; onLevel(device.id, it) },
         )
 
+        // Three decimals, not two. Confidence is 0.65*|p_on-0.5|*2 + 0.35, so a
+        // decisive model sits around 0.998 and genuinely moves in the third
+        // decimal -- rounding to two flattened every device to a motionless
+        // "1.00" that read as a printed label rather than a live figure.
         Text(
-            if (device.online) "${device.source} · confidence ${"%.2f".format(device.confidence)}"
-            else "leaf unreachable",
+            when {
+                !device.online -> "leaf unreachable"
+                device.gate == "held" ->
+                    "connected · held · ${"%.3f".format(device.confidence)}"
+                else ->
+                    "connected · ${device.source} · ${"%.3f".format(device.confidence)}"
+            },
             style = MaterialTheme.typography.labelSmall,
             color = Ink3,
         )
@@ -476,9 +443,14 @@ private fun BlockButton(text: String, onClick: () -> Unit) {
     }
 }
 
+// Matched on the device-family prefix, so appending a device to DEVICE_ORDER
+// needs one line here and nothing else. The vacuum previously fell through to
+// the bulb: a robot vacuum drawn as a light bulb is not a cosmetic problem, it
+// is the screen telling the user the wrong thing about their house.
 private fun iconFor(deviceId: String): Int = when {
     deviceId.startsWith("ac") -> R.drawable.ic_ac
     deviceId.startsWith("fan") -> R.drawable.ic_fan
+    deviceId.startsWith("vacuum") -> R.drawable.ic_vacuum
     else -> R.drawable.ic_bulb
 }
 

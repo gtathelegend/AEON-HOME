@@ -1,5 +1,7 @@
 package com.example.aeon.net
 
+import android.content.Context
+import android.util.Log
 import com.example.aeon.model.HubSnapshot
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -17,13 +19,24 @@ import java.util.concurrent.atomic.AtomicBoolean
  * to keep in step -- it is the same one.
  */
 class HubClient(
+    private val context: Context,
     private val onSnapshot: (HubSnapshot) -> Unit,
     private val onLink: (Boolean, String) -> Unit,
 ) {
-    private val client = OkHttpClient.Builder()
-        .readTimeout(0, TimeUnit.MILLISECONDS)       // a socket that never idles out
-        .pingInterval(20, TimeUnit.SECONDS)          // notice a dead AP instead of hanging
-        .build()
+    /**
+     * Built per connection, not once, so it can be pinned to the CURRENT WiFi
+     * network. Android will happily route a LAN address over cellular when it
+     * considers WiFi to have no internet -- the socket then leaves from
+     * 192.0.0.4 and times out against a hub three metres away.
+     */
+    private fun newClient(): OkHttpClient {
+        val builder = OkHttpClient.Builder()
+            .readTimeout(0, TimeUnit.MILLISECONDS)   // a socket that never idles out
+            .pingInterval(20, TimeUnit.SECONDS)      // notice a dead AP instead of hanging
+            .connectTimeout(6, TimeUnit.SECONDS)     // fail fast; 10 s is a long stare
+        LanNetwork.wifi(context)?.let { builder.socketFactory(it.socketFactory) }
+        return builder.build()
+    }
 
     private var socket: WebSocket? = null
     private var url: String = ""
@@ -33,16 +46,25 @@ class HubClient(
     fun connect(host: String, port: Int) {
         disconnect()
         closedByUs.set(false)
-        url = "ws://$host:$port/ws"
+        // ?client=phone identifies this socket as a handset rather than a
+        // screen, so the dashboard can show that the phone is actually attached
+        // instead of the presenter discovering it never connected mid-demo.
+        url = "ws://$host:$port/ws?client=phone"
         open()
     }
 
     private fun open() {
         onLink(false, "connecting")
+        val onWifi = LanNetwork.wifi(context) != null
+        Log.i(HubDiscovery.TAG, "ws: opening $url (wifi=$onWifi)")
+        if (!onWifi) {
+            onLink(false, "phone is on mobile data, not WiFi")
+        }
         val request = Request.Builder().url(url).build()
-        socket = client.newWebSocket(request, object : WebSocketListener() {
+        socket = newClient().newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 attempt = 0
+                Log.i(HubDiscovery.TAG, "ws: OPEN $url")
                 onLink(true, "linked")
             }
 
@@ -57,11 +79,19 @@ class HubClient(
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                // The single most useful line when the phone will not connect:
+                // it names the exception. ETIMEDOUT means the packets are being
+                // dropped (client isolation, wrong network); ECONNREFUSED means
+                // the phone reached the laptop and nothing was listening.
+                Log.w(HubDiscovery.TAG,
+                    "ws: FAILED $url -> ${t.javaClass.simpleName}: ${t.message}" +
+                        (response?.let { " (http ${it.code})" } ?: ""))
                 onLink(false, t.message ?: "no route to hub")
                 scheduleReconnect()
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                Log.i(HubDiscovery.TAG, "ws: CLOSED $code $reason")
                 onLink(false, "closed")
                 scheduleReconnect()
             }
@@ -86,7 +116,15 @@ class HubClient(
 
     // -- outbound -----------------------------------------------------------
 
-    private fun send(obj: JSONObject): Boolean = socket?.send(obj.toString()) ?: false
+    private fun send(obj: JSONObject): Boolean {
+        val queued = socket?.send(obj.toString()) ?: false
+        // false here means okhttp queued nothing -- the socket is closed or
+        // closing. Worth logging: from the user's side "I spoke and nothing
+        // happened" looks the same whether the send failed or the hub ignored it.
+        if (queued) Log.i(HubDiscovery.TAG, "ws: sent ${obj.optString("typ")} $obj")
+        else Log.w(HubDiscovery.TAG, "ws: NOT SENT (socket not open) $obj")
+        return queued
+    }
 
     /** A spoken sentence. The hub parses it and fans it out. */
     fun speak(text: String) = send(JSONObject().put("typ", "speak").put("text", text))

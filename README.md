@@ -24,8 +24,15 @@ command to the AI PC. The PC retrains and pushes the updated model back.
 | AC | setpoint, 16–30 °C | what you said, and when |
 | Fan | speed, 0–100 % | ambient temperature |
 | Light | colour, 2200–6500 K | time of day |
+| Robot vacuum | suction, 0–100 % | the hour you told it to clean |
 
-All three also turn off when the room is empty.
+The AC, fan and light also turn off when the room is empty. The vacuum is
+deliberately exempt: an empty room is a *good* time to clean, not a reason to
+stop. It is not restricted to an empty room either — occupancy is marked
+07:00–23:00, so a vacuum gated to "only when empty" could never honour *"clean
+at 3 PM"*. It would accept the sentence, learn it, and then silently never act
+on it. The vacuum runs on the time preference you state, and occupancy stays out
+of its way.
 
 ### The division of labour is the design
 
@@ -69,14 +76,17 @@ appliance, so it verifies before acting.
 
 Phases stack on one seam — `HubState.snapshot()`. The dashboard never learns
 whether its data came from the scripted house or the real node, so Phase 2
-landed underneath a finished UI **without a single change to `web/`**.
+landed underneath a finished UI **without a single change to `web/`**. The robot
+vacuum was added the same way: a registry entry and a word list, no UI work at
+all — the fourth tile, its learned schedule and its leaf all came through the
+same snapshot.
 
 Run either: `python run.py` for Phase 2, `python run.py --phase 1` for the
 scripted house.
 
 ### What is real as of Phase 2
 
-Everything crosses a socket. The three leaves are real TCP servers that verify
+Everything crosses a socket. The four leaves are real TCP servers that verify
 HMAC-SHA256 before switching, and reject unsigned or tampered commands on the
 wire. Preferences persist in SQLite with full supersession history. The node
 keeps durable eMMC checkpoints (magic + CRC32, durable-replace, 3 generations)
@@ -102,38 +112,49 @@ Everything else is real, including the model.
 Trained on the AI PC, deployed to and executed on the node.
 
 ```
-input (105) ──► Dense(32) + tanh ──► Dense(1) + sigmoid ──► p_on
+input (106) ──► Dense(32) + tanh ──► Dense(1) + sigmoid ──► p_on
             └─► Dense(32) + tanh ──► Dense(1)           ──► level
 ```
 
     window   24 steps x 4 channels                  =  96
     context  hour sin/cos, dow sin/cos, weekend, ambient z   =   6
-    device one-hot                                          =   3
-                                                    input   = 105
+    device one-hot                                          =   4
+                                                    input   = 106
 
-**6,850 parameters.** Two heads, because "should it be on?" and "at what
-setting?" are different questions. One model serves all three appliances — each
+**6,914 parameters.** Two heads, because "should it be on?" and "at what
+setting?" are different questions. One model serves all four appliances — each
 window carries a device one-hot, so shared structure (an empty room means off,
-the daily rhythm) is learned once rather than three times, and there is one
+the daily rhythm) is learned once rather than four times, and there is one
 deploy target and one rollback target.
+
+Adding the vacuum is what that buys you: it was appended to `DEVICE_ORDER`, given
+a registry entry and a word list, and it arrived as a fourth tile with its own
+learned schedule. Appending is safe because it shifts no existing one-hot index;
+reordering would silently corrupt every prediction, which is why the node rejects
+a model whose `device_order` disagrees with its own.
 
 A stated preference is expanded into a coherent 28-day timeline rather than
 stored as one row. **One row per timestep, never duplicated** — repeating a
 preference to weight it fills the 24-step lag window with N copies of the same
 hour, and the model then trains on histories that cannot physically occur.
 
-### Measured on this machine
+### Measured on the Snapdragon X Elite (X1E78100, win-arm64)
 
 | | |
 |---|---|
-| Pooled training windows | 1,944 |
-| Parameters | 6,850 |
+| Pooled training windows | 2,592 |
+| Parameters | 6,914 |
 | Cross-validated AUC | 1.000 |
-| Training wall time | ~3.3 s (warm) |
-| Artefact | 28,042 B fp32 → **10,209 B int8** |
-| int8 vs fp32 | on/off decisions **identical** over 300 windows; max p_on delta 2.9e-4 |
-| Inference | **~41 µs** median, ONNX Runtime CPU |
-| Level MAE | AC 0.23 °C · fan 0.470 % · light 20.3 K |
+| Training wall time | ~1.3 s idle, ~2.2 s in the full suite |
+| Artefact | 28,298 B fp32 → **10,273 B int8** |
+| int8 vs fp32 | on/off decisions **identical** over 300 windows; max p_on delta 2.0e-4 |
+| Inference | **~12.7 µs** median, ONNX Runtime CPU |
+| Level MAE | AC 0.27 °C · fan 0.647 % · light 33.4 K · vacuum 1.045 % |
+
+Inference is timed on an otherwise idle machine. The same benchmark run
+immediately after cross-validation inside `test_phase3.py` reads ~25 µs, because
+it is competing with the training that just finished — worth knowing before
+quoting whichever number the terminal happened to show.
 
 CV AUC 1.000 reflects training on a synthetic timeline derived
 deterministically from stated rules — it says the model learned the rules, not
@@ -241,13 +262,23 @@ change?*
 
 ---
 
+## Repository layout
+
+```
+simulation/     the hub: backend, dashboard, model, tests, tools  (Python)
+AEON app/       the Android client                                (Kotlin)
+docs/           AI Hub notes, migration runbook, project memory
+```
+
+Everything below runs from `simulation/`.
+
 ## Setup from scratch
 
 Requires Python 3.11 or newer. No Node, no npm, no build step.
 
 ```bash
-git clone <this-repo>
-cd aeon-home
+git clone https://github.com/gtathelegend/AEON-HOME.git
+cd AEON-HOME/simulation
 python -m venv .venv
 
 # Windows
@@ -284,7 +315,10 @@ On the phone, either hold the mic and say a preference, or type one:
 - `set the AC to 25 degrees at 9 PM`
 - `run the fan at full speed at 3 PM`
 - `night light at 11 PM`
+- `vacuum the house at 3 PM`
+- `deep clean at 11 AM on weekdays`
 - `AC ko 23 degree pe chalao 9 baje` — code-mixed Hindi/English works
+- `safai karo 9 baje` — so does the vacuum
 
 The dashboard shows the command hitting two destinations, with the measured
 latency of each hop.
@@ -306,7 +340,7 @@ count, per-device MAE, checkpoint sequence, wall-clock training time, packet
 counts. All of it is in `HubState`, and none of it is on the dashboard.
 
 In a five-minute judged demo a number nobody reads is a number in the way. The
-screen shows the three appliances, the fan-out proof with its measured latency,
+screen shows the four appliances, the fan-out proof with its measured latency,
 and the model version. The rest stays one `snapshot()` call away for anyone who
 asks.
 
@@ -348,22 +382,26 @@ like a product bug. It needs a hub started with `--reset`; against a stale
 database the policy is already current and the retrain check fails for reasons
 unrelated to the code.
 
-### Measured on this machine
+### Measured on the Snapdragon X Elite
 
 | | |
 |---|---|
-| Leaf hop (central → leaf → ack, real TCP) | **~1.1 ms** median |
-| Leaf hop with the PC unplugged | ~1.3 ms — the leaf path does not depend on the PC |
-| Cold checkpoint restore (new process, Windows) | ~12 ms |
-| Warm checkpoint restore | < 1 ms |
+| Leaf hop (central → leaf → ack, real TCP) | **0.4 – 0.9 ms** median across runs |
+| Leaf hop with the PC unplugged | comparable — the leaf path does not depend on the PC |
+| Leaf hop over the live WebSocket (`test_endtoend`) | **0.198 ms**, PC hop 0.048 ms |
 
 The design doc quotes 0.60 ms for the leaf hop and 0.1–0.4 ms for restore. Those
-were in-process and warm-cache numbers; these cross a real socket and a real
-cold file open. Quote the measured ones.
+were in-process and warm-cache numbers; these cross a real socket. Quote the
+measured ones — and quote a range, because the leaf hop moved between 0.404 ms
+and 0.896 ms across runs on this machine. A single decimal place of a
+sub-millisecond socket round trip is not a stable quantity, and presenting one
+as though it were invites the question you least want on stage.
 
 ---
 
 ## Layout
+
+Paths below are relative to `simulation/`.
 
 | File | Role |
 |---|---|

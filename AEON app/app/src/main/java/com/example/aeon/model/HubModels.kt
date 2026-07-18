@@ -21,6 +21,10 @@ data class DeviceState(
     val source: String,
     val confidence: Double,
     val online: Boolean,
+    // "act" / "ask" / "abstain", or "held" when automation is switched off and
+    // the model reached a decision it was not permitted to act on. Without this
+    // the phone would report `model` while nothing was moving.
+    val gate: String,
 ) {
     companion object {
         fun from(o: JSONObject): DeviceState {
@@ -38,6 +42,7 @@ data class DeviceState(
                 source = o.optString("source", "idle"),
                 confidence = o.optDouble("confidence", 0.0),
                 online = o.optBoolean("online", true),
+                gate = o.optString("gate", "act"),
             )
         }
     }

@@ -1,6 +1,9 @@
 __pycache__/
 *.py[cod]
-.venv/
+# .venv* rather than .venv: AI Hub is installed in a SEPARATE venv
+# (.venv-aihub) because qai-hub pins protobuf back to 6.x and the runtime stack
+# is on 7.x. Keeping them apart is deliberate -- see docs/AIHUB.md.
+.venv*/
 venv/
 .idea/
 *.iml
