@@ -1,80 +1,71 @@
-# ÆON Home — System Architecture
+# System Architecture Documentation
 
-## Overview
+This document describes the design, subsystems, and data flows of the ÆON Home edge-native cognitive platform.
 
-ÆON Home is a **Persistent Edge Intelligence Platform** — a multi-layer system
-where a Snapdragon X Elite AI PC acts as the cognitive engine for a network of
-Arduino sensors, with a PWA dashboard as the only external interface.
+---
+
+## 1. Overall System Topology
+
+ÆON Home organizes computational tasks across three distinct tiers to maximize offline reliability, user privacy, and hardware acceleration:
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         User Interface                              │
-│         PWA Dashboard (React)        Sarvam Voice (STT/TTS)        │
-└────────────────────────────┬──────────────────────┬────────────────┘
-                             │ HTTP/WS               │ Text only
-┌────────────────────────────▼──────────────────────▼────────────────┐
-│                  Snapdragon X Elite — Edge AI Engine                │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐ │
-│  │ WS       │ │  QNN /   │ │ Policy   │ │Knowledge │ │  Auth   │ │
-│  │ Gateway  │→│ Hexagon  │→│ Engine   │ │  Graph   │ │ Tokens  │ │
-│  │          │ │  NPU     │ │          │ │          │ │         │ │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └─────────┘ │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐             │
-│  │Continuous│ │ Memory   │ │WebSocket │ │ Metrics  │             │
-│  │ Learning │ │  Store   │ │   Bus    │ │Prometheus│             │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘             │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │ WebSocket (JSON) over Wi-Fi
-┌────────────────────────────▼────────────────────────────────────────┐
-│                      ESP8266 Wi-Fi Gateway                          │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │ UART (JSON, 9600 baud)
-┌────────────────────────────▼────────────────────────────────────────┐
-│                    Arduino Sentinel                                  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────────┐   │
-│  │  DHT22   │  │  HC-SR501│  │   Reed   │  │  EEPROM          │   │
-│  │ Temp/Hum │  │  PIR     │  │  Switch  │  │  Checkpoint      │   │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────────────┘   │
-└─────────────────────────────────────────────────────────────────────┘
-                                                 ↕ (optional)
-                              Qualcomm Cloud AI 100
-                              (background optimisation only)
++------------------+     JSON / WebSocket      +----------------------+
+|  Arduino UNO Q   | <=======================> |  Snapdragon X Elite  |
+|  (Edge Sentinel) |                           |  (Cognitive OS Host) |
++------------------+                           +----------------------+
+  - Sensor Drivers                               - QNN / NPU Runtime
+  - Local Fallbacks                              - Explainability Engine
+  - EEPROM Checkpoint                            - Knowledge Graph (DB)
 ```
 
-## Data flow
+---
 
-1. **Sensors → Feature Extraction (Arduino)**  
-   DHT22, PIR, reed switch → rolling window statistics → FeatureFrame struct.  
-   Raw sensor values never leave the Arduino.
+## 2. Runtime & Reasoning Flow
 
-2. **Feature Frames → QNN Inference (Snapdragon)**  
-   FeatureFrame (7 floats) → Hexagon NPU → presence probability + anomaly score.
+Every telemetry update runs through a **9-stage Cognitive Execution Pipeline** to resolve device actions:
 
-3. **AI output → Policy Engine**  
-   Scores + rule overlay → PolicyDecision.  
-   High-confidence decisions → capability token issued.
+```
+[Sensors] 
+   │
+   ▼
+[Feature Extraction] 
+   │
+   ▼
+[Inference Engine (QNN)] 
+   │
+   ▼
+[Context Engine] ──► [Activity Engine] ──► [User Profile Engine] ──► [Policy Engine Overlay]
+                                                                            │
+                                                                            ▼
+                                                                    [Reasoning Engine]
+                                                                            │
+                                                                            ▼
+                                                                    [Device Action]
+```
 
-4. **Policy → WebSocket → Dashboard**  
-   Structured events pushed to all connected PWA clients in real time.
+1. **Sensing**: DHT11 and PIR motion sensors sample physical baselines.
+2. **Context Engine**: Extracts temporal and spatial contexts.
+3. **Activity Engine**: Infers user state (e.g., Sleeping, Away, Working).
+4. **User Profile**: Overlay preference settings (e.g. `preferred_temp`).
+5. **Policy Engine Overlay**: Combines rules and models.
+6. **Reasoning Engine**: Explores 5 alternative outcomes and selects the action.
+7. **Explainability Engine**: Formulates textual logs for user transparency.
+8. **Actuation**: Transmits output intents to target relays or notification buses.
 
-5. **User Feedback → Learning Loop**  
-   False alarm labels → labelled dataset → periodic fine-tune of QNN adapter.
+---
 
-6. **Dream State (nightly)**  
-   All idle devices consolidate the day's decisions.  
-   Model weights pruned and compressed overnight.  
-   Optional: delta weights sent to Cloud AI 100 for distillation.
+## 3. Communication Gateway
 
-## Privacy model
+All messages flow through a standardized, version-aware **Communication Gateway**:
+- **Protocol**: Raw JSON payloads wrapped with metadata.
+- **Security**: Optional HMAC validation, nonces, and timestamp skew tracking.
+- **Event Bus**: Emits loose event publishes (`TelemetryReceived`, `DeviceConnected`, `CheckpointSaved`) for background service decoupling.
 
-- Raw sensor data stays on Arduino.
-- Feature vectors stay on Snapdragon.
-- Only capability tokens (intent + confidence, no data) cross any network boundary.
-- Cloud AI 100 receives only model weight deltas, never data.
+---
 
-## Persistence and recovery
+## 4. Dream State & Optimization
 
-- Arduino checkpoints state to EEPROM every 2 seconds (ping-pong slots).
-- Recovery latency target: **< 200 ms** from power-on.
-- Snapdragon memory store uses SQLite with WAL journaling.
-- Knowledge graph is rebuilt from SQLite on every boot.
+When the system detects zero command activity for 10 seconds:
+- **Consolidation**: Prunes stale context records.
+- **Policy Tuning**: Boosts confidence indicators.
+- **Interruption**: Reverts to active mode immediately on user input.

@@ -2,113 +2,121 @@
 
 > Smart devices forget. ÆON remembers.
 
-ÆON Home is a persistent edge AI platform powered by Snapdragon X Elite.
-The smart home is the demonstration. The actual innovation is an AI system
-that survives power loss, continuously learns on-device, preserves user
-privacy, and allows portable identity across devices.
-
-**Everything important happens on the Snapdragon X Elite. The cloud is optional.**
+ÆON Home is a persistent edge AI platform powered by the **Qualcomm Snapdragon X Elite**. The smart home is our demonstration, but the core innovation is an on-device edge operating system that survives power losses, learns continuously through user feedback loops, preserves absolute privacy, and enables portable user identities.
 
 ---
 
-## Repository structure
+## 1. Project Overview & Architecture
+
+Every critical operation (inference, learning optimization, reasoning, and context analysis) occurs directly on the edge node. The cloud remains optional.
+
+```
+                  +--------------------------------+
+                  |      User Interaction (PWA)    |
+                  +--------------------------------+
+                                  | HTTP / WebSocket
+                                  v
+                  +--------------------------------+
+                  |  Snapdragon X Elite Node (Host) |
+                  |  - REST API & Event Bus        |
+                  |  - QNN / NPU Inference Runtime |
+                  |  - Context & Activity Engines  |
+                  |  - Reasoning & Explanations    |
+                  +--------------------------------+
+                                  | Wi-Fi (JSON Gateway)
+                                  v
+                  +--------------------------------+
+                  |   Arduino UNO Q (Edge Sentinel)|
+                  |  - Persistent Checkpoint (Flash)|
+                  |  - Local Policy Controller     |
+                  |  - Hardware Driver Layer       |
+                  +--------------------------------+
+```
+
+---
+
+## 2. Directory Structure
 
 ```
 aeon-home/
-  arduino/              Sentinel firmware (sensing, EEPROM persistence, serial)
-    firmware/           Main sketch
-    libraries/          aeon_protocol, aeon_checkpoint, aeon_sensors, aeon_features
-
   backend/              Snapdragon Edge AI Engine (Python, FastAPI)
     aeon/
-      api/              REST API (FastAPI) consumed by PWA + mobile
-      auth/             JWT capability token system
+      api/              REST API Layer and WebSocket gateway
+      services/         Application Services (Device, Telemetry, Checkpoint, etc.)
       config/           Environment configuration
       graph/            On-device knowledge graph (NetworkX + SQLite)
-      learning/         Continuous learning loop + Cloud AI 100 sync
+      learning/         Continuous learning loops
       memory/           SQLite persistent memory store (WAL, power-safe)
       metrics/          Prometheus telemetry exporter
-      migration/        Identity export/import (signed bundles)
-      models/           QNN model definitions + ONNX→QNN export pipeline
-      policy/           Policy engine (AI scores + rule overlay → decisions)
-      qnn/              QNN SDK wrapper (Hexagon NPU, ONNX CPU fallback)
-      serial/           USB-serial bridge + binary protocol parser
+      models/           QNN model definitions and ONNX exports
+      policy/           Policy engine
       voice/            Sarvam AI speech bridge (STT + TTS)
-      websocket/        Real-time WebSocket event bus → PWA dashboard
-
-  frontend/             PWA Dashboard (TanStack Start, React, Tailwind)
-    lib/                API client, WebSocket hook
-    (src/ is the live TanStack Start source — see frontend/README.md)
-
-  shared/               Cross-layer contracts
-    schemas/            JSON Schema for all data structures
-    protocol/           AEON binary serial protocol specification
-    types/              TypeScript types (mirrors backend dataclasses)
-
+  firmware/             Arduino UNO Q firmware (sensing, EEPROM checkpointing)
+  frontend/             PWA Dashboard (React, Vite, Tailwind CSS)
+  shared/               Cross-layer schemas and protocol contracts
   docs/                 Architecture, privacy model, getting-started guide
-  deployment/           systemd service, Docker Compose, nginx config
-  tests/                pytest (backend), vitest (frontend), Unity (Arduino)
-  scripts/              Setup, flash, test, model-export automation
+  tests/                Full pytest system integration test suite
 ```
 
-## Core principles
+---
 
-| Principle      | Implementation                                              |
-|----------------|-------------------------------------------------------------|
-| Edge AI first  | QNN Runtime on Hexagon NPU; cloud is opt-in                |
-| Privacy first  | Raw data never leaves Arduino; only capability tokens shared|
-| Offline first  | SQLite + EEPROM persistence; zero cloud dependency         |
-| Modular        | Every module exposes a clean API; independently testable   |
+## 3. Technology Stack
 
-## Quick start
+- **Firmware**: C++ / Arduino API on Qualcomm Arduino Uno Q (STM32U585 MCU)
+- **Backend Node**: Python 3.11+, FastAPI, SQLite, NetworkX, Qualcomm QNN SDK
+- **Frontend Dashboard**: TypeScript, React, Vite, Tailwind CSS, TanStack Router
+- **Speech Processing**: Sarvam AI API for localized voice commands
 
+---
+
+## 4. Quick Start
+
+### Prerequisites
+- Python 3.11+
+- Node.js 20+
+- `arduino-cli` (optional for compilation)
+
+### Setup & Installation
+
+1. **Configure Environment**:
+   ```bash
+   cp .env.example .env
+   # Edit .env to set your serial ports and keys
+   ```
+
+2. **Backend Installation**:
+   ```bash
+   cd backend
+   python -m venv .venv
+   source .venv/Scripts/activate
+   pip install -r requirements.txt
+   ```
+
+3. **Frontend Installation**:
+   ```bash
+   cd ../frontend
+   npm install
+   ```
+
+4. **Flash Firmware**:
+   Copy libraries from `firmware/libraries/` to your local Arduino libraries path, then compile and flash the sketch located in `firmware/firmware/sentinel/` using the Arduino IDE.
+
+5. **Start Applications**:
+   - Backend: `cd backend && python -m aeon.main`
+   - Frontend: `cd frontend && npm run dev`
+
+---
+
+## 5. Verification & Testing
+
+Verify the installation by running the system integration test suite:
 ```bash
-# 1. Flash Arduino Firmware
-./scripts/flash_arduino.sh /dev/ttyUSB0
-
-# 2. Flash ESP8266 Wi-Fi Gateway
-# (Open arduino/esp8266/aeon_wireless_gateway in Arduino IDE, copy config.example.h to config.h, add Wi-Fi details, and upload)
-
-# 3. Set up backend
-./scripts/setup_backend.sh
-
-# 4. Start backend
-cd backend && source .venv/bin/activate && python -m aeon.main
-
-# 5. Start dashboard
-npm install && npm run dev
-# → http://localhost:3000
+cd backend
+.venv/Scripts/pytest
 ```
 
-See [docs/getting-started.md](docs/getting-started.md) for the full guide.
+---
 
-## System architecture
+## 6. License & Roadmap
 
-```
-PIR / DHT22 / Reed switch
-        ↓
-  Arduino Sentinel          (sensing, feature extraction, EEPROM checkpoint)
-        ↓  UART (JSON)
-  ESP8266 Gateway           (Wi-Fi bridging, offline buffering)
-        ↓  WebSocket over Wi-Fi
-  Snapdragon X Elite        (QNN/Hexagon NPU, policy, graph, learning, auth)
-        ↓  WebSocket / HTTP
-  PWA Dashboard + Mobile    (UI only — all intelligence is on-device)
-        ↓  text only
-  Sarvam Voice              (STT + TTS speech I/O)
-        ↕  opt-in
-  Qualcomm Cloud AI 100     (background model optimisation)
-```
-
-## Privacy model
-
-- Raw sensor data: stays on Arduino.
-- Feature vectors: stay on Snapdragon.
-- Capability tokens (signed intents, no data): cross the LAN.
-- Cloud AI 100: receives model weight deltas only (opt-in, default off).
-
-See [docs/privacy.md](docs/privacy.md) for full details.
-
-## License
-
-Apache 2.0 — see LICENSE.
+This project is licensed under the Apache 2.0 License. See `ROADMAP.md` in the `docs` directory for future extensions including Matter protocol integration.
