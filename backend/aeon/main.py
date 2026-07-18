@@ -78,6 +78,41 @@ async def main() -> None:
     from backend.aeon.voice.manager import ConversationManager
     voice_manager = ConversationManager(graph=graph, policy=policy, memory_store=memory)
 
+    # ── Unified Application Services (Commit 7) ───────────────────────────────
+    from backend.aeon.services.event_bus import EventBus
+    from backend.aeon.services.authentication_service import AuthenticationService
+    from backend.aeon.services.device_service import DeviceService
+    from backend.aeon.services.telemetry_service import TelemetryService
+    from backend.aeon.services.checkpoint_service import CheckpointService
+    from backend.aeon.services.policy_service import PolicyService
+    from backend.aeon.services.preference_service import PreferenceService
+    from backend.aeon.services.learning_service import LearningService
+    from backend.aeon.services.recommendation_service import RecommendationService
+    from backend.aeon.services.training_service import TrainingService
+    from backend.aeon.services.firmware_service import FirmwareService
+    from backend.aeon.services.communication_gateway import CommunicationGateway
+
+    event_bus = EventBus()
+    auth_service = AuthenticationService()
+    device_service = DeviceService(device_registry=device_registry, event_bus=event_bus)
+    telemetry_service = TelemetryService(memory=memory, ws_bus=ws_bus, event_bus=event_bus)
+    checkpoint_service = CheckpointService(graph=graph, event_bus=event_bus)
+    policy_service = PolicyService(policy_engine=policy)
+    preference_service = PreferenceService(profile_engine=policy.profile_engine, event_bus=event_bus)
+    learning_service = LearningService(memory=memory, event_bus=event_bus)
+    recommendation_service = RecommendationService(graph=graph, event_bus=event_bus)
+    training_service = TrainingService(learning_loop=learning_loop)
+    firmware_service = FirmwareService(graph=graph)
+
+    communication_gateway = CommunicationGateway(
+        auth_service=auth_service,
+        telemetry_service=telemetry_service,
+        learning_service=learning_service,
+        device_service=device_service,
+        checkpoint_service=checkpoint_service,
+        event_bus=event_bus,
+    )
+
     # ── Wire cross-module dependencies ────────────────────────────────────────
     # WebSocket bus gets references to every real data source
     ws_bus.memory           = memory
@@ -129,6 +164,18 @@ async def main() -> None:
         identity_manager=identity_manager,
         device_registry=device_registry,
         voice_manager=voice_manager,
+        communication_gateway=communication_gateway,
+        event_bus=event_bus,
+        auth_service=auth_service,
+        device_service=device_service,
+        telemetry_service=telemetry_service,
+        checkpoint_service=checkpoint_service,
+        policy_service=policy_service,
+        preference_service=preference_service,
+        learning_service=learning_service,
+        recommendation_service=recommendation_service,
+        training_service=training_service,
+        firmware_service=firmware_service,
     )
 
     # ── Run all subsystems ────────────────────────────────────────────────────

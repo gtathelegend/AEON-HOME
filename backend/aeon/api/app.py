@@ -45,6 +45,18 @@ def create_app(
     device_registry,
     voice_manager,
     deployment_service=None,
+    communication_gateway=None,
+    event_bus=None,
+    auth_service=None,
+    device_service=None,
+    telemetry_service=None,
+    checkpoint_service=None,
+    policy_service=None,
+    preference_service=None,
+    learning_service=None,
+    recommendation_service=None,
+    training_service=None,
+    firmware_service=None,
 ) -> FastAPI:
     app = FastAPI(
         title="ÆON Home API",
@@ -78,6 +90,20 @@ def create_app(
     app.state.device_registry     = device_registry
     app.state.voice_manager       = voice_manager
     app.state.deployment_service  = deployment_service
+
+    # Inject unified services
+    app.state.communication_gateway = communication_gateway
+    app.state.event_bus = event_bus
+    app.state.auth_service = auth_service
+    app.state.device_service = device_service
+    app.state.telemetry_service = telemetry_service
+    app.state.checkpoint_service = checkpoint_service
+    app.state.policy_service = policy_service
+    app.state.preference_service = preference_service
+    app.state.learning_service = learning_service
+    app.state.recommendation_service = recommendation_service
+    app.state.training_service = training_service
+    app.state.firmware_service = firmware_service
 
     # ── Register routers ──────────────────────────────────────────────────────
     app.include_router(health_router.router,     prefix="/api/v1")
