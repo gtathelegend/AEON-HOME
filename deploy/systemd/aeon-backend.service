@@ -1,0 +1,20 @@
+[Unit]
+Description=ÆON Home Backend (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=aeon
+WorkingDirectory=/opt/aeon-home/backend
+# Load environment variables
+EnvironmentFile=/opt/aeon-home/.env
+# Use poetry or venv
+ExecStart=/opt/aeon-home/venv/bin/python -m aeon.main
+Restart=on-failure
+RestartSec=5s
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=aeon-backend
+
+[Install]
+WantedBy=multi-user.target

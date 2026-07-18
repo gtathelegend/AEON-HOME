@@ -25,7 +25,6 @@ from aeon.api.routes import metrics_api as metrics_router
 from aeon.api.routes import learning_api as learning_router
 from aeon.api.routes import system as system_router
 
-
 def create_app(
     *, 
     memory, 

@@ -1,0 +1,18 @@
+[Unit]
+Description=ÆON Home Frontend (Nitro/Node)
+After=network.target aeon-backend.service
+
+[Service]
+Type=simple
+User=aeon
+WorkingDirectory=/opt/aeon-home/frontend
+EnvironmentFile=/opt/aeon-home/.env
+ExecStart=/usr/bin/node .output/server/index.mjs
+Restart=on-failure
+RestartSec=5s
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=aeon-frontend
+
+[Install]
+WantedBy=multi-user.target

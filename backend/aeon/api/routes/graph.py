@@ -11,7 +11,7 @@ POST /api/v1/graph/preferences/{user_id} — update a preference
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Query
 from pydantic import BaseModel
 from typing import Any, Optional
 

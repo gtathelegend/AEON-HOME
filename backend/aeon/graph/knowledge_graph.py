@@ -157,7 +157,7 @@ class KnowledgeGraph:
                             nodes_to_keep.append(n)
                             event_count += 1
                     else:
-                         nodes_to_keep.append(n)
+                        nodes_to_keep.append(n)
                 
                 kept_ids = {n["data"]["id"] for n in nodes_to_keep}
                 edges_to_keep = [
@@ -214,3 +214,4 @@ class KnowledgeGraph:
             inferred["near_rooms"] = list(set(inferred["near_rooms"]))
             inferred["active_devices"] = list(set(inferred["active_devices"]))
             return inferred
+

@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from asyncio import StreamWriter
-    from fastapi import WebSocket
 
 log = structlog.get_logger(__name__)
 
@@ -59,13 +58,13 @@ class SerialWriter:
         self._lock = asyncio.Lock()
         self._commands_sent: int = 0
 
-    def attach(self, websocket: WebSocket) -> None:
+    def attach(self, websocket: "WebSocket") -> None:
         """Called by Gateway when a WebSocket connection opens."""
         if websocket not in self._sockets:
             self._sockets.append(websocket)
         log.info("serial_writer.attached", clients=len(self._sockets))
 
-    def detach(self, websocket: WebSocket) -> None:
+    def detach(self, websocket: "WebSocket") -> None:
         """Called by Gateway when a WebSocket connection drops."""
         if websocket in self._sockets:
             self._sockets.remove(websocket)

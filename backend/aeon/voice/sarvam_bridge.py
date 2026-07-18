@@ -8,6 +8,7 @@ Sarvam's role in ÆON is strictly limited to speech I/O:
 The text command is processed entirely on-device by the policy engine.
 No audio or sensor data is sent to Sarvam — only text strings.
 
+Sarvam API docs: https://docs.sarvam.ai
 Offline mode: falls back to system TTS + Vosk STT when sarvam_offline=True.
 """
 
@@ -19,13 +20,8 @@ import structlog
 from typing import AsyncIterator
 
 import httpx
-# These libraries are optional/platform-specific for the server machine itself
-try:
-    import sounddevice as sd  # type: ignore[import]
-    import soundfile as sf  # type: ignore[import]
-    _SOUND_AVAILABLE = True
-except ImportError:
-    _SOUND_AVAILABLE = False
+import sounddevice as sd
+import soundfile as sf
 import numpy as np
 
 from aeon.config.settings import settings
@@ -54,9 +50,6 @@ class SarvamBridge:
         """
         Record from microphone for duration_s seconds and return transcribed text.
         """
-        if not _SOUND_AVAILABLE:
-            log.warning("voice.sounddevice_not_installed")
-            return ""
         log.info("voice.listen_start", duration=duration_s)
         audio = await asyncio.to_thread(self._record, duration_s)
 
@@ -75,8 +68,6 @@ class SarvamBridge:
     # ── Recording ─────────────────────────────────────────────────────────────
 
     def _record(self, duration_s: float) -> np.ndarray:
-        if not _SOUND_AVAILABLE:
-            return np.zeros(0)
         samples = int(SAMPLE_RATE * duration_s)
         audio = sd.rec(samples, samplerate=SAMPLE_RATE, channels=CHANNELS,
                        dtype="int16")
@@ -86,8 +77,6 @@ class SarvamBridge:
     # ── Sarvam cloud paths ────────────────────────────────────────────────────
 
     async def _sarvam_stt(self, audio: np.ndarray) -> str:
-        if not _SOUND_AVAILABLE:
-            return ""
         buf = io.BytesIO()
         sf.write(buf, audio, SAMPLE_RATE, format="WAV", subtype="PCM_16")
         buf.seek(0)
@@ -125,8 +114,6 @@ class SarvamBridge:
         log.info("voice.offline_tts", text=text)
 
     def _play_wav(self, wav_bytes: bytes) -> None:
-        if not _SOUND_AVAILABLE:
-            return
         buf = io.BytesIO(wav_bytes)
         data, sr = sf.read(buf, dtype="float32")
         sd.play(data, sr)

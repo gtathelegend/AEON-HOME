@@ -1,0 +1,18 @@
+{
+  "title": "FeatureFrame",
+  "description": "Feature vector extracted by Arduino and consumed by Snapdragon QNN models.",
+  "type": "object",
+  "required": ["seq", "timestamp_ms", "temperature", "humidity", "motion", "door_open", "mean_temp", "var_temp", "delta_motion"],
+  "properties": {
+    "seq":           { "type": "integer", "minimum": 0 },
+    "timestamp_ms":  { "type": "integer", "minimum": 0 },
+    "temperature":   { "type": "number" },
+    "humidity":      { "type": "number",  "minimum": 0, "maximum": 100 },
+    "motion":        { "type": "boolean" },
+    "door_open":     { "type": "boolean" },
+    "mean_temp":     { "type": "number" },
+    "var_temp":      { "type": "number",  "minimum": 0 },
+    "delta_motion":  { "type": "number",  "minimum": 0 }
+  },
+  "additionalProperties": false
+}

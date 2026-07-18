@@ -1,1 +1,3 @@
-# aeon.sensors init
+"""
+aeon/sensors/__init__.py
+"""

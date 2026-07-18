@@ -1,0 +1,20 @@
+# ÆON Backend — Docker image (CPU/ONNX only, no NPU)
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# System dependencies for sounddevice + soundfile
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libsndfile1 portaudio19-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY aeon/ ./aeon/
+
+RUN mkdir -p /app/data /app/models/bin
+
+EXPOSE 8000 8001 9090
+
+CMD ["python", "-m", "aeon.main"]

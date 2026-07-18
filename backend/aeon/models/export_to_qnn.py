@@ -19,7 +19,6 @@ QNN compilation targets HTP (Hexagon Tensor Processor) on Snapdragon X Elite.
 from __future__ import annotations
 
 import argparse
-import logging
 import structlog
 import shutil
 import subprocess

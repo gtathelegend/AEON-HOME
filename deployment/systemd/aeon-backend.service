@@ -1,0 +1,23 @@
+[Unit]
+Description=ÆON Home — Snapdragon Edge AI Backend
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=aeon
+WorkingDirectory=/opt/aeon-home/backend
+EnvironmentFile=/opt/aeon-home/.env
+ExecStart=/opt/aeon-home/backend/.venv/bin/python -m aeon.main
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=aeon-backend
+
+# Resource limits — leave headroom for QNN inference
+LimitNOFILE=65536
+Nice=-5
+
+[Install]
+WantedBy=multi-user.target

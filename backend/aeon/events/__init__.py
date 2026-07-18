@@ -1,1 +1,3 @@
-# aeon.events init
+"""
+aeon/events/__init__.py
+"""

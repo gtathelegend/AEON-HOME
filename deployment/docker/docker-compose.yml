@@ -1,0 +1,38 @@
+# ÆON Home — Docker Compose (development / CI only)
+# WARNING: Docker cannot access the Hexagon NPU.
+#          ONNX CPU fallback is used. Not for production.
+
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: ../deployment/docker/Dockerfile.backend
+    ports:
+      - "8000:8000"   # FastAPI
+      - "8001:8001"   # WebSocket
+      - "9090:9090"   # Prometheus metrics
+    volumes:
+      - aeon-data:/app/data
+    env_file:
+      - ../../.env
+    environment:
+      - AEON_USE_NPU=false          # No NPU in Docker
+      - AEON_SERIAL_PORT=           # No serial in Docker
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+      - VITE_WS_URL=ws://localhost:8001
+
+volumes:
+  aeon-data:

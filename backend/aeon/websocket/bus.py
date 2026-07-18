@@ -460,12 +460,12 @@ class WebSocketBus:
                 "motionState": motion_str,
             },
             "snapdragonStatus": {
-                "connected": True,
+                "connected": True,  # backend is running, so Snapdragon is connected
                 "npuActive": npu_active,
                 "modelName": model_name,
                 "latencyMs": latency_ms,
                 "throughputFps": throughput_fps,
-                "memoryMb": 0,
+                "memoryMb": 0,   # not exposed by onnxruntime easily; left as 0
                 "tokensVerified": tokens_issued,
                 "powerState": f"{power_w:.1f}W (estimated)",
                 "executionProvider": npu_backend,
@@ -483,7 +483,7 @@ class WebSocketBus:
             "dreamState": {
                 "active": dream_active,
                 "eventsReplayed": events_replayed,
-                "compressionPct": 0,
+                "compressionPct": 0,   # not measured yet; honest 0
                 "beforeLatencyMs": before_latency,
                 "afterLatencyMs": after_latency,
                 "lastRunTime": last_dream_run,

@@ -1,0 +1,15 @@
+{
+  "title": "CapabilityToken",
+  "description": "JWT capability token payload — encodes intent, never raw sensor data.",
+  "type": "object",
+  "required": ["jti", "sub", "capability", "confidence", "reason", "iat", "exp"],
+  "properties": {
+    "jti":        { "type": "string",  "description": "Unique token ID (UUID v4)" },
+    "sub":        { "type": "string",  "description": "Device ID that issued the token" },
+    "capability": { "type": "string",  "description": "Dot-namespaced capability e.g. presence.detected" },
+    "confidence": { "type": "number",  "minimum": 0, "maximum": 1 },
+    "reason":     { "type": "string",  "description": "Human-readable decision reason" },
+    "iat":        { "type": "integer", "description": "Issued-at Unix timestamp" },
+    "exp":        { "type": "integer", "description": "Expiry Unix timestamp" }
+  }
+}

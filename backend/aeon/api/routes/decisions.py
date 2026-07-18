@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 
 router = APIRouter(tags=["decisions"])
 
