@@ -23,7 +23,7 @@ private:
         void* context;
     };
 
-    static const uint8_t MAX_HANDLERS = 8;
+    static const uint8_t MAX_HANDLERS = 16;
     HandlerEntry _handlers[MAX_HANDLERS];
     uint8_t _handler_count;
 };

@@ -125,14 +125,29 @@ void StorageManager::resetToDefaults(AeonState* state) {
 }
 
 void StorageManager::applyDefaults(AeonState* state) {
-    state->checkpoint_id      = 0;
-    state->seq                = 0;
-    state->timestamp          = 0;
-    state->model_v            = DEFAULT_MODEL_V;
-    state->mean               = DEFAULT_MEAN;
-    state->std_dev            = DEFAULT_STD_DEV;
-    state->theta              = DEFAULT_THETA;
-    state->active_policy_hash = 0;
-    state->deployment_id      = 0;
-    state->crc32              = 0;
+    state->checkpoint_id        = 0;
+    state->seq                  = 0;
+    state->timestamp            = 0;
+    state->model_v              = DEFAULT_MODEL_V;
+    state->mean                 = DEFAULT_MEAN;
+    state->std_dev              = DEFAULT_STD_DEV;
+    state->theta                = DEFAULT_THETA;
+    state->active_policy_hash   = 0;
+    state->deployment_id        = 0;
+
+    // ── Runtime statistics (v3 fields) ────────────────────────────────────────
+    state->inference_count      = 0;
+    state->avg_confidence_x100  = 0;
+    state->avg_latency_ms       = 0;
+    state->error_count          = 0;
+    state->model_score_x100     = 0;
+    state->rollback_count       = 0;
+    state->_pad1                = 0;
+
+    // ── Learning buffer metadata (v3 fields) ──────────────────────────────────
+    state->learning_buffer_head  = 0;
+    state->learning_buffer_count = 0;
+
+    state->crc32                = 0;
 }
+

@@ -24,6 +24,7 @@ from backend.aeon.api.routes import events as events_router
 from backend.aeon.api.routes import metrics_api as metrics_router
 from backend.aeon.api.routes import learning_api as learning_router
 from backend.aeon.api.routes import system as system_router
+from backend.aeon.api.routes import models_api as models_router
 
 def create_app(
     *, 
@@ -40,7 +41,8 @@ def create_app(
     serial_writer,
     identity_manager,
     device_registry,
-    voice_manager
+    voice_manager,
+    deployment_service=None,
 ) -> FastAPI:
     app = FastAPI(
         title="ÆON Home API",
@@ -71,8 +73,9 @@ def create_app(
     app.state.serial_bridge    = serial_bridge
     app.state.serial_writer    = serial_writer
     app.state.identity_manager = identity_manager
-    app.state.device_registry  = device_registry
-    app.state.voice_manager    = voice_manager
+    app.state.device_registry     = device_registry
+    app.state.voice_manager       = voice_manager
+    app.state.deployment_service  = deployment_service
 
     # ── Register routers ──────────────────────────────────────────────────────
     app.include_router(health_router.router,     prefix="/api/v1")
@@ -86,6 +89,7 @@ def create_app(
     app.include_router(metrics_router.router,    prefix="/api/v1")
     app.include_router(learning_router.router,   prefix="/api/v1")
     app.include_router(system_router.router,     prefix="/api/v1")
+    app.include_router(models_router.router,     prefix="/api/v1")
 
     from backend.aeon.api.routes import gateway as gateway_router
     app.include_router(gateway_router.router)  # Mounted at root for /ws/device

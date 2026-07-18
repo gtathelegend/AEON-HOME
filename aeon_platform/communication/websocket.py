@@ -194,6 +194,76 @@ class WebSocketBus:
                 except Exception:
                     log.exception("websocket.graph_snapshot_on_demand_error")
 
+        # ── Deployment lifecycle messages (firmware → backend) ────────────────
+
+        elif msg_type == "deployment_ack":
+            # Firmware acknowledges receipt of a deployment_started message.
+            deployment_id = payload.get("deployment_id", "unknown")
+            status        = payload.get("status", "unknown")
+            log.info("websocket.deployment_ack", id=deployment_id, status=status)
+            await self.publish("deployment_ack_received", {
+                "deployment_id": deployment_id,
+                "status":        status,
+            })
+
+        elif msg_type == "model_activated":
+            # Firmware signals that a new model has been activated successfully.
+            model_v = payload.get("model_v")
+            log.info("websocket.model_activated", model_v=model_v)
+            if self.model_manager:
+                # Update statistics source of truth
+                pass  # Commit was already applied by DeploymentService
+            await self.publish("model_activated", payload)
+
+        elif msg_type == "model_rolled_back":
+            # Firmware signals a self-initiated rollback.
+            reason  = payload.get("reason", "unknown")
+            model_v = payload.get("model_v")
+            log.warning("websocket.model_rolled_back_by_fw", reason=reason, model_v=model_v)
+            await self.publish("model_rolled_back", payload)
+
+        elif msg_type == "statistics_updated":
+            # Firmware periodically flushes runtime statistics.
+            if self.model_manager:
+                confidence = float(payload.get("avg_confidence", 0.0))
+                latency    = float(payload.get("avg_latency_ms", 0.0))
+                inferences = int(payload.get("inference_count", 0))
+                # Only record if the firmware reports non-zero new inferences
+                if inferences > 0:
+                    self.model_manager.record_inference(confidence, latency, success=True)
+            await self.publish("statistics_updated", payload)
+
+        elif msg_type == "runtime_health":
+            # Firmware reports RAM and transport health.
+            free_ram = payload.get("free_ram_bytes", 0)
+            ok       = payload.get("ok", True)
+            log.info("websocket.runtime_health", free_ram=free_ram, ok=ok)
+            if not ok:
+                log.warning("websocket.firmware_health_degraded", payload=payload)
+            await self.publish("runtime_health", payload)
+
+        elif msg_type == "inference_summary":
+            # Firmware reports a per-inference summary.
+            confidence = float(payload.get("confidence", 0.0))
+            latency    = float(payload.get("latency_ms", 0.0))
+            success    = bool(payload.get("success", True))
+            if self.model_manager:
+                self.model_manager.record_inference(confidence, latency, success)
+            await self.publish("inference_summary", payload)
+
+        elif msg_type == "model_score_updated":
+            # Firmware reports a fresh composite score.
+            log.info("websocket.model_score_updated", score=payload.get("score"))
+            await self.publish("model_score_updated", payload)
+
+        elif msg_type == "learning_buffer_status":
+            # Firmware reports learning buffer fill level.
+            count    = payload.get("count", 0)
+            capacity = payload.get("capacity", 0)
+            log.info("websocket.learning_buffer", count=count, capacity=capacity)
+            await self.publish("learning_buffer_status", payload)
+
+
     async def _run_migration(self) -> None:
         try:
             await self.publish("migration_status", {"status": "exporting"})

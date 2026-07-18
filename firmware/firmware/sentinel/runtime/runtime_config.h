@@ -50,7 +50,7 @@
 #define MSG_QUEUE_ENTRY_LEN    512    // Max bytes per queued message
 
 // ── Storage (Flash EEPROM Emulation) ─────────────────────────────────────────
-#define STORAGE_MAGIC          0xAE04  // Magic marker for valid flash slot
+#define STORAGE_MAGIC          0xAE05  // v3: extended AeonState (58 bytes). Rejects old v1/v2 flash.
 #define STORAGE_SLOT_A         0       // Primary ping-pong slot index
 #define STORAGE_SLOT_B         1       // Secondary ping-pong slot index
 #define STORAGE_MAX_WRITES     50000   // STM32U5 enhanced flash write endurance
@@ -67,3 +67,30 @@
 // ── Boot ──────────────────────────────────────────────────────────────────────
 #define BOOT_STAGE_COUNT       13      // Total boot stages in RuntimeManager
 #define BOOT_WIFI_TIMEOUT_MS   30000   // Max time to wait for WiFi at boot
+
+// ── Model Scoring Weights ─────────────────────────────────────────────────────
+// All weights should sum to 1.0. Stored as floats, configured at compile time.
+// Adjust these to tune the composite model quality score.
+#define SCORE_W_CONFIDENCE      0.25f  // Raw model output confidence
+#define SCORE_W_ACCURACY        0.20f  // Accuracy estimate from training
+#define SCORE_W_CORRECTION_RATE 0.15f  // False alarm + override rate (inverted)
+#define SCORE_W_LATENCY         0.10f  // Inference latency (inverted, lower=better)
+#define SCORE_W_RELIABILITY     0.15f  // 1 - error_rate
+#define SCORE_W_ROLLBACK_HIST   0.10f  // Rollback count (inverted)
+#define SCORE_W_STABILITY       0.05f  // Variance of recent confidence values
+
+// ── Rollback Thresholds ───────────────────────────────────────────────────────
+// Automatic rollback triggers if the runtime composite score drops below
+// ROLLBACK_SCORE_THRESHOLD or confidence collapses below ROLLBACK_CONF_THRESHOLD.
+#define ROLLBACK_SCORE_THRESHOLD     0.30f  // Composite score below this → rollback
+#define ROLLBACK_CONF_THRESHOLD      0.25f  // Avg confidence below this → rollback
+#define ROLLBACK_LATENCY_THRESHOLD   500    // Avg latency above this (ms) → rollback
+#define ROLLBACK_ERROR_RATE_THRESHOLD 0.30f // Error rate above this → rollback
+
+// ── Statistics Flush ──────────────────────────────────────────────────────────
+#define STATISTICS_FLUSH_INTERVAL_MS  60000  // Flush stats to backend every 60 s
+
+// ── Learning Buffer ───────────────────────────────────────────────────────────
+#define LEARNING_BUFFER_CAPACITY     128    // Ring buffer depth (LearningRecord count)
+#define LEARNING_BUFFER_FLUSH_MS     120000 // Flush learning records every 2 minutes
+#define FEATURE_VECTOR_LEN           7      // Must match FeatureCompatibility.feature_vector_size

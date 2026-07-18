@@ -16,6 +16,7 @@
 #include "../telemetry/telemetry_manager.h"
 #include "../inference/model_runtime.h"
 #include "../inference/local_policy.h"
+#include "../inference/rollback_manager.h"
 #include "../devices/device_registry.h"
 #include "../security/security_manager.h"
 #include "../health/health_monitor.h"
@@ -37,24 +38,36 @@ public:
     void handleBuzzer(const char* json_str);
     void handleCheckpoint(const char* json_str);
 
+    // ── Deployment Lifecycle Handlers (Commit 3) ─────────────────────────────
+    void handleDeploymentStart(const char* json_str);
+    void handleDeploymentCommit(const char* json_str);
+    void handleDeploymentRollback(const char* json_str);
+    void handleStatisticsRequest(const char* json_str);
+
 private:
     // Subsystem instances
-    StorageManager   _storage;
-    AeonState        _state;
+    StorageManager    _storage;
+    AeonState         _state;
     CheckpointManager _checkpoint;
-    SensorDriver     _sensors;
-    FeatureExtractor _features;
-    ActuatorDriver   _actuators;
-    WiFiTransport    _transport;
-    AeonProtocol     _protocol;
-    CommandRouter    _router;
-    Scheduler        _scheduler;
-    TelemetryManager _telemetry;
-    ModelRuntime     _model_runtime;
-    LocalPolicy      _local_policy;
-    DeviceRegistry   _device_registry;
-    SecurityManager  _security;
-    HealthMonitor    _health;
+    SensorDriver      _sensors;
+    FeatureExtractor  _features;
+    ActuatorDriver    _actuators;
+    WiFiTransport     _transport;
+    AeonProtocol      _protocol;
+    CommandRouter     _router;
+    Scheduler         _scheduler;
+    TelemetryManager  _telemetry;
+    ModelRuntime      _model_runtime;
+    LocalPolicy       _local_policy;
+    RollbackManager   _rollback_manager;
+    DeviceRegistry    _device_registry;
+    SecurityManager   _security;
+    HealthMonitor     _health;
+
+    // Timestamps for interval tracking (millis-based)
+    uint32_t _last_stats_flush_ms;
+    uint32_t _last_buffer_flush_ms;
+    uint32_t _model_activated_at_ms;
 
     // Scheduled task callbacks (delegated to static helpers)
     static void onSampleTask(void* context);
@@ -62,6 +75,8 @@ private:
     static void onHeartbeatTask(void* context);
     static void onHealthTask(void* context);
     static void onDeviceRegistryPollTask(void* context);
+    static void onStatisticsFlushTask(void* context);
+    static void onLearningBufferFlushTask(void* context);
 
     // Boot pipeline stages
     bool stage01_hardware_init();
@@ -77,4 +92,8 @@ private:
     bool stage11_telemetry_init();
     bool stage12_security_init();
     bool stage13_runtime_ready();
+
+    // Internal helpers
+    void _flushStatistics();
+    void _flushLearningBuffer();
 };
