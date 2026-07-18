@@ -19,7 +19,7 @@ async def system_metrics(request: Request):
     stats["ws_clients"] = len(ws_bus._clients)
     
     # Import prometheus values to return via REST
-    from aeon.metrics.exporter import (
+    from backend.aeon.metrics.exporter import (
         sys_cpu_utilization, sys_npu_utilization, sys_ram_utilization, sys_power_draw_w,
         frames_total, decisions_total, anomaly_score, learning_train_total, privacy_bytes_saved
     )
@@ -69,7 +69,7 @@ async def metrics_stream(websocket: WebSocket):
             memory = app.state.memory
             stats = await memory.get_system_stats()
             
-            from aeon.metrics.exporter import (
+            from backend.aeon.metrics.exporter import (
                 sys_cpu_utilization, sys_npu_utilization, sys_ram_utilization, sys_power_draw_w,
                 frames_total, learning_train_total, privacy_bytes_saved
             )

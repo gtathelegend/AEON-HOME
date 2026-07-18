@@ -50,7 +50,7 @@ def _wrap_packet(payload: bytes, ftype: int = 0x01, seq: int = 1) -> bytes:
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 async def _make_db(path: Path):
-    from aeon.memory.store import MemoryStore
+    from aeon_platform.storage.store import MemoryStore
     mem = MemoryStore(db_path=path)
     await mem.init()
     return mem
@@ -61,7 +61,8 @@ async def _make_db(path: Path):
 class TestSerialParser:
 
     def test_parse_feature_frame(self):
-        from aeon.serial.parser import FrameParser, FeatureFrame
+        from aeon_platform.communication.serial import FrameParser
+        from shared.types import FeatureFrame
 
         packet = _wrap_packet(_feature_payload(temp=23.7, hum=51.0, motion=True), seq=42)
         parser, result = FrameParser(), None
@@ -76,7 +77,8 @@ class TestSerialParser:
         assert result.seq == 42
 
     def test_parse_event_frame(self):
-        from aeon.serial.parser import FrameParser, AeonEvent
+        from aeon_platform.communication.serial import FrameParser
+        from shared.types import AeonEvent
 
         raw    = b"SYSTEM:boot_complete:0"
         packet = _wrap_packet(raw, ftype=0x02, seq=7)
@@ -92,7 +94,7 @@ class TestSerialParser:
         assert result.seq == 7
 
     def test_rejects_corrupt_magic(self):
-        from aeon.serial.parser import FrameParser
+        from aeon_platform.communication.serial import FrameParser
 
         bad = bytes([0xFF, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00]) + b"\x00" * 4
         parser = FrameParser()
@@ -102,8 +104,8 @@ class TestSerialParser:
 # ── 2. SensorProcessor → MemoryStore ─────────────────────────────────────────
 
 async def test_sensor_processor_stores_frame():
-    from aeon.serial.parser import FeatureFrame
-    from aeon.sensors.processor import SensorProcessor
+    from shared.types import FeatureFrame
+    from core.context.sensors import SensorProcessor
 
     tmpdir = tempfile.mkdtemp()
     mem = await _make_db(Path(tmpdir) / "sp.db")
@@ -139,8 +141,8 @@ async def test_sensor_processor_stores_frame():
 # ── 3. PolicyEngine → decision logged ────────────────────────────────────────
 
 async def test_policy_engine_logs_decision():
-    from aeon.policy.engine import PolicyEngine
-    from aeon.serial.parser import FeatureFrame
+    from core.policy.engine import PolicyEngine
+    from shared.types import FeatureFrame
 
     tmpdir = tempfile.mkdtemp()
     mem = await _make_db(Path(tmpdir) / "pe.db")
@@ -187,7 +189,7 @@ async def test_policy_engine_logs_decision():
 # ── 4. KnowledgeGraph persistence ────────────────────────────────────────────
 
 async def test_knowledge_graph_persists():
-    from aeon.graph.knowledge_graph import KnowledgeGraph
+    from core.profiles.knowledge_graph import KnowledgeGraph
 
     tmpdir = tempfile.mkdtemp()
     mem = await _make_db(Path(tmpdir) / "kg.db")
@@ -215,8 +217,8 @@ async def test_knowledge_graph_persists():
 # ── 5. WS bus telemetry — no fake values ─────────────────────────────────────
 
 async def test_ws_bus_telemetry_no_fake_values():
-    from aeon.graph.knowledge_graph import KnowledgeGraph
-    from aeon.websocket.bus import WebSocketBus
+    from core.profiles.knowledge_graph import KnowledgeGraph
+    from aeon_platform.communication.websocket import WebSocketBus
 
     tmpdir = tempfile.mkdtemp()
     mem = await _make_db(Path(tmpdir) / "bus.db")
@@ -233,10 +235,10 @@ async def test_ws_bus_telemetry_no_fake_values():
         bus.sensor_processor = None
         bus.voice_manager    = None
 
-        with patch("aeon.metrics.exporter.frames_total") as ft, \
-             patch("aeon.metrics.exporter.sys_cpu_utilization") as cpu, \
-             patch("aeon.metrics.exporter.sys_npu_utilization") as npu, \
-             patch("aeon.metrics.exporter.sys_power_draw_w") as pwr:
+        with patch("backend.aeon.metrics.exporter.frames_total") as ft, \
+             patch("backend.aeon.metrics.exporter.sys_cpu_utilization") as cpu, \
+             patch("backend.aeon.metrics.exporter.sys_npu_utilization") as npu, \
+             patch("backend.aeon.metrics.exporter.sys_power_draw_w") as pwr:
 
             ft._value.get  = MagicMock(return_value=0)
             cpu._value.get = MagicMock(return_value=12.5)
@@ -270,7 +272,7 @@ async def test_ws_bus_telemetry_no_fake_values():
 # ── 6. LearningLoop threshold update ─────────────────────────────────────────
 
 def test_learning_loop_threshold_update():
-    from aeon.learning.loop import LearningLoop
+    from core.learning.loop import LearningLoop
 
     tmpdir = tempfile.mkdtemp()
     try:
@@ -290,8 +292,8 @@ def test_learning_loop_threshold_update():
 # ── 7. DreamState — stages + graph rule ──────────────────────────────────────
 
 async def test_dream_state_pipeline():
-    from aeon.graph.knowledge_graph import KnowledgeGraph
-    from aeon.learning.dream import DreamState
+    from core.profiles.knowledge_graph import KnowledgeGraph
+    from core.learning.dream import DreamState
 
     tmpdir = tempfile.mkdtemp()
     mem = await _make_db(Path(tmpdir) / "ds.db")
@@ -326,10 +328,10 @@ async def test_dream_state_pipeline():
 # ── 8. VoiceManager — sensor query answered from real DB ─────────────────────
 
 async def test_voice_manager_sensor_query():
-    from aeon.graph.knowledge_graph import KnowledgeGraph
-    from aeon.voice.manager import ConversationManager
-    from aeon.serial.parser import FeatureFrame
-    from aeon.sensors.processor import SensorProcessor
+    from core.profiles.knowledge_graph import KnowledgeGraph
+    from backend.aeon.voice.manager import ConversationManager
+    from shared.types import FeatureFrame
+    from core.context.sensors import SensorProcessor
 
     tmpdir = tempfile.mkdtemp()
     mem = await _make_db(Path(tmpdir) / "vm.db")
@@ -364,8 +366,8 @@ async def test_voice_manager_sensor_query():
 # ── 9. VoiceManager — feedback persists ──────────────────────────────────────
 
 async def test_voice_manager_feedback_persists():
-    from aeon.graph.knowledge_graph import KnowledgeGraph
-    from aeon.voice.manager import ConversationManager
+    from core.profiles.knowledge_graph import KnowledgeGraph
+    from backend.aeon.voice.manager import ConversationManager
 
     tmpdir = tempfile.mkdtemp()
     mem = await _make_db(Path(tmpdir) / "vfb.db")
@@ -389,8 +391,8 @@ async def test_voice_manager_feedback_persists():
 # ── 10. IdentityManager — export bundle ──────────────────────────────────────
 
 async def test_identity_export_real_data():
-    from aeon.graph.knowledge_graph import KnowledgeGraph
-    from aeon.identity.manager import IdentityManager
+    from core.profiles.knowledge_graph import KnowledgeGraph
+    from core.profiles.identity import IdentityManager
 
     tmpdir = tempfile.mkdtemp()
     mem = await _make_db(Path(tmpdir) / "id.db")

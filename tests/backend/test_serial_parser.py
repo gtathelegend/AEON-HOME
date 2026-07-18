@@ -10,10 +10,10 @@ import pytest
 import sys
 import os
 
-# Allow importing from backend without installing
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from aeon.serial.parser import FrameParser, FeatureFrame, AeonEvent, FrameType
+from aeon_platform.communication.serial import FrameParser, FrameType
+from shared.types import FeatureFrame, AeonEvent
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────

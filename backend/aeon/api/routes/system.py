@@ -6,7 +6,7 @@ GET /api/v1/system/state    — lightweight combined status for frontend polling
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
-from aeon.config.settings import settings
+from aeon_platform.filesystem.settings import settings
 
 router = APIRouter(tags=["system"])
 
@@ -67,7 +67,7 @@ async def privacy_audit(request: Request):
     external caller. Sarvam only receives text strings, never raw sensor
     payloads.
     """
-    from aeon.metrics.exporter import frames_total, privacy_bytes_saved
+    from backend.aeon.metrics.exporter import frames_total, privacy_bytes_saved
 
     total_frames = int(frames_total._value.get())
     local_bytes  = int(privacy_bytes_saved._value.get())

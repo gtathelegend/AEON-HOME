@@ -24,7 +24,7 @@ import sounddevice as sd
 import soundfile as sf
 import numpy as np
 
-from aeon.config.settings import settings
+from aeon_platform.filesystem.settings import settings
 
 log = structlog.get_logger(__name__)
 

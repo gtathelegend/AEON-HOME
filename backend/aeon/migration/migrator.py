@@ -26,8 +26,8 @@ import structlog
 from datetime import datetime, timezone
 from typing import Any
 
-from aeon.auth.tokens import issue_token, verify_token, TokenVerificationError
-from aeon.config.settings import settings
+from aeon_platform.security.tokens import issue_token, verify_token, TokenVerificationError
+from aeon_platform.filesystem.settings import settings
 
 log = structlog.get_logger(__name__)
 

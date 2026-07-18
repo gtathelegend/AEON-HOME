@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 from pathlib import Path
 
 if TYPE_CHECKING:
-    from aeon.qnn.manager import QNNManager
+    from aeon_platform.runtime.qnn.manager import QNNManager
 
 log = structlog.get_logger(__name__)
 

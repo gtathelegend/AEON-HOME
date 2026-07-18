@@ -3,7 +3,7 @@ import structlog
 import json
 import asyncio
 
-from aeon.serial.parser import FeatureFrame, AeonEvent
+from shared.types import FeatureFrame, AeonEvent
 
 router = APIRouter(tags=["gateway"])
 log = structlog.get_logger(__name__)

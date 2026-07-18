@@ -13,17 +13,17 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from aeon.api.routes import devices as devices_router
-from aeon.api.routes import decisions as decisions_router
-from aeon.api.routes import graph as graph_router
-from aeon.api.routes import migration as migration_router
-from aeon.api.routes import voice as voice_router
-from aeon.api.routes import health as health_router
-from aeon.api.routes import sensors as sensors_router
-from aeon.api.routes import events as events_router
-from aeon.api.routes import metrics_api as metrics_router
-from aeon.api.routes import learning_api as learning_router
-from aeon.api.routes import system as system_router
+from backend.aeon.api.routes import devices as devices_router
+from backend.aeon.api.routes import decisions as decisions_router
+from backend.aeon.api.routes import graph as graph_router
+from backend.aeon.api.routes import migration as migration_router
+from backend.aeon.api.routes import voice as voice_router
+from backend.aeon.api.routes import health as health_router
+from backend.aeon.api.routes import sensors as sensors_router
+from backend.aeon.api.routes import events as events_router
+from backend.aeon.api.routes import metrics_api as metrics_router
+from backend.aeon.api.routes import learning_api as learning_router
+from backend.aeon.api.routes import system as system_router
 
 def create_app(
     *, 
@@ -87,7 +87,7 @@ def create_app(
     app.include_router(learning_router.router,   prefix="/api/v1")
     app.include_router(system_router.router,     prefix="/api/v1")
 
-    from aeon.api.routes import gateway as gateway_router
+    from backend.aeon.api.routes import gateway as gateway_router
     app.include_router(gateway_router.router)  # Mounted at root for /ws/device
 
     return app

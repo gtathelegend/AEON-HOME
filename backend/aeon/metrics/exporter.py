@@ -19,7 +19,7 @@ from pathlib import Path
 
 from prometheus_client import Counter, Gauge, start_http_server
 
-from aeon.config.settings import settings
+from aeon_platform.filesystem.settings import settings
 
 log = structlog.get_logger(__name__)
 

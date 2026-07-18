@@ -5,10 +5,10 @@ Unit tests for the capability token system.
 """
 
 import sys, os, time
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 import pytest
-from aeon.auth.tokens import issue_token, verify_token, TokenVerificationError
+from aeon_platform.security.tokens import issue_token, verify_token, TokenVerificationError
 
 
 def test_issue_and_verify():

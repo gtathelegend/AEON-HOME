@@ -14,22 +14,21 @@ Starts all subsystems concurrently:
 import asyncio
 import structlog
 
-from aeon.config.settings import settings
-# Legacy SerialBridge removed
-from aeon.qnn.manager import QNNManager
-from aeon.policy.engine import PolicyEngine
-from aeon.graph.knowledge_graph import KnowledgeGraph
-from aeon.websocket.bus import WebSocketBus
-from aeon.memory.store import MemoryStore
-from aeon.api.app import create_app
-from aeon.metrics.exporter import MetricsExporter
-from aeon.serial.writer import SerialWriter
-from aeon.sensors.processor import SensorProcessor
-from aeon.events.processor import EventProcessor
-from aeon.models.manager import ModelManager
-from aeon.identity.manager import IdentityManager
-from aeon.devices.registry import DeviceRegistry
-from aeon.learning.loop import LearningLoop
+from aeon_platform.filesystem.settings import settings
+from aeon_platform.runtime.qnn.manager import QNNManager
+from core.policy.engine import PolicyEngine
+from core.profiles.knowledge_graph import KnowledgeGraph
+from aeon_platform.communication.websocket import WebSocketBus
+from aeon_platform.storage.store import MemoryStore
+from backend.aeon.api.app import create_app
+from backend.aeon.metrics.exporter import MetricsExporter
+from aeon_platform.communication.serial import SerialWriter
+from core.context.sensors import SensorProcessor
+from core.context.events import EventProcessor
+from backend.aeon.models.manager import ModelManager
+from core.profiles.identity import IdentityManager
+from core.registry.devices import DeviceRegistry
+from core.learning.loop import LearningLoop
 
 log = structlog.get_logger(__name__)
 
@@ -46,7 +45,7 @@ async def main() -> None:
 
     # Seed database if requested
     if settings.seed_database:
-        from aeon.memory.seed import seed_database_if_empty
+        from aeon_platform.storage.seed import seed_database_if_empty
         await seed_database_if_empty(memory, graph)
 
     ws_bus   = WebSocketBus()
@@ -75,7 +74,7 @@ async def main() -> None:
         serial_writer=serial_writer,
     )
 
-    from aeon.voice.manager import ConversationManager
+    from backend.aeon.voice.manager import ConversationManager
     voice_manager = ConversationManager(graph=graph, policy=policy, memory_store=memory)
 
     # ── Wire cross-module dependencies ────────────────────────────────────────

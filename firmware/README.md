@@ -1,51 +1,78 @@
-# Arduino — ÆON Sentinel Firmware
+# ÆON Sentinel Edge Runtime Firmware
 
-The Arduino layer is the **sensing and actuation edge** of ÆON Home.  
-It handles raw hardware, performs lightweight feature extraction, and communicates
-with the Snapdragon AI PC over USB serial using the AEON binary protocol.
+The firmware layer implements a **layered, coordinator-driven runtime** for the edge sensing and actuation node of ÆON Home.
 
-## Directory layout
+## Target Hardware Platform
+- **Board**: Arduino UNO Q (Qualcomm Dragonwing QRB2210 dual-processor system)
+- **MCU**: STMicroelectronics STM32U585 (Cortex-M33 @ 160 MHz) running Arduino APIs on top of Zephyr RTOS
+- **Wireless**: Built-in WCBN3536A module (Dual-band Wi-Fi 5 + Bluetooth 5.1)
+- **Storage**: Emulated Non-Volatile Flash Storage (`FlashStorage_STM32`)
+
+---
+
+## Redesigned Modular Layout
 
 ```
-arduino/
-  firmware/
-    sentinel/         Main sketch — reads sensors, checkpoints, talks to Snapdragon
-  libraries/
-    aeon_protocol/    Binary serial framing (magic + CRC-16)
-    aeon_checkpoint/  EEPROM ping-pong state persistence
-    aeon_sensors/     DHT22 + PIR + reed-switch abstraction
-    aeon_features/    Rolling-window feature extraction
+firmware/firmware/sentinel/
+├── sentinel.ino              ← Main sketch entry (delegates to RuntimeManager)
+├── config.h                  ← Wi-Fi SSID, Password & Snapdragon WebSocket IP configurations
+├── runtime/
+│   ├── runtime_manager.h/.cpp   ← 13-stage deterministic boot coordinator
+│   └── runtime_config.h         ← Pin assignments, intervals, and threshold constants
+├── communication/
+│   ├── transport.h              ← ITransport pure virtual interface
+│   ├── wifi_transport.h/.cpp    ← WCBN3536A Native WebSocket client implementation
+│   └── message_queue.h/.cpp     ← Reliability queue (offline ring buffer)
+├── protocols/
+│   ├── message_envelope.h       ← Packet metadata envelope
+│   ├── aeon_protocol.h/.cpp     ← JSON frame serializer/deserializer
+│   └── command_router.h/.cpp    ← Subsystem command dispatcher
+├── storage/
+│   ├── storage_manager.h/.cpp   ← Flash EEPROM emulation (wear-leveling, dual-slot ping-pong)
+│   └── runtime_state.h          ← AeonState struct declaration
+├── checkpoint/
+│   └── checkpoint_manager.h/.cpp ← High-level checkpoint API
+├── scheduler/
+│   └── scheduler.h/.cpp         ← Cooperative task scheduler
+├── telemetry/
+│   └── telemetry_manager.h/.cpp ← Sensor aggregator and broadcaster
+├── inference/
+│   ├── model_runtime.h/.cpp     ← Model version controller
+│   └── local_policy.h/.cpp      ← Local fallback rules (anomaly classifying, button feedback)
+├── devices/
+│   └── device_registry.h/.cpp  ← Registry for gateway and leaf devices
+├── security/
+│   └── security_manager.h/.cpp ← Cryptographic validation stubs
+├── sensors/
+│   └── sensor_driver.h/.cpp    ← DHT11 and PIR GPIO driver
+├── features/
+│   └── feature_extractor.h/.cpp ← Statistical feature extraction
+├── actuators/
+│   └── actuator_driver.h/.cpp  ← LED, relay, and buzzer driver
+└── health/
+    └── health_monitor.h/.cpp   ← Memory, Wi-Fi, and transport health monitoring
 ```
 
-## Hardware
+---
+
+## Pin Configurations
 
 | Component          | Default pin | Notes                              |
 |--------------------|-------------|------------------------------------|
-| DHT11              | 2           | Temp + humidity                    |
-| HC-SR501 PIR       | 3           | Motion detection                   |
-| False Alarm Button | 4           | Manual dismissal / threshold bump |
+| DHT11              | 2           | Temp + humidity sensor             |
+| HC-SR501 PIR       | 3           | Motion sensor                      |
+| False Alarm Button | 4           | Manual dismissal / threshold bump  |
 | Status LED         | 5           | Active anomaly / alert indicator   |
+| Relay 1            | 7           | Power / appliance control          |
+| Relay 2            | 8           | Auxiliary relay                    |
+| Buzzer             | 9           | Acoustic indicator via tone()      |
 
-## Supported boards
+---
 
-- Arduino Uno R4 WiFi (recommended)
-- Arduino Nano 33 IoT
-- Any AVR/ARM board with ≥ 1 KB EEPROM and hardware serial
+## Dependency Checklist
 
-## Setup
-
-1. Install Arduino IDE 2.x or arduino-cli.
-2. Install libraries: `ArduinoJson`, `DHT sensor library`.
-3. Copy `libraries/aeon_*` folders into your Arduino `libraries/` directory.
-4. Open `firmware/sentinel/sentinel.ino` and flash.
-
-## Serial protocol
-
-See `libraries/aeon_protocol/aeon_protocol.h` for the full frame spec.  
-The Snapdragon backend serial bridge connects on the same USB-serial port at **115200 baud**.
-
-## EEPROM layout
-
-Two 64-byte ping-pong slots starting at address 0.  
-Each slot: `[MAGIC:4][VERSION:1][STATE:sizeof(AeonState)][CRC16:2]`  
-Recovery latency target: **< 200 ms** from power-on.
+Before compiling, install these libraries via the Arduino IDE Library Manager:
+1. `ArduinoJson` (v6.x)
+2. `DHT sensor library`
+3. `FlashStorage_STM32`
+4. `WebSockets` (by Markus Sattler)

@@ -61,7 +61,7 @@ async def voice_command(
     and dispatch to ConversationManager.
     Returns the transcription and response text.
     """
-    from aeon.config.settings import settings
+    from aeon_platform.filesystem.settings import settings
 
     raw = await file.read()
     content_type = file.content_type or "audio/wav"
@@ -165,7 +165,7 @@ async def voice_speak(body: SpeakRequest, request: Request):
     Convert text to speech via Sarvam TTS and return WAV bytes.
     Audio is played locally by the PWA — never stored externally.
     """
-    from aeon.config.settings import settings
+    from aeon_platform.filesystem.settings import settings
 
     if not settings.sarvam_api_key or settings.sarvam_offline:
         # Return empty WAV with a clear Content header so client knows
@@ -198,7 +198,7 @@ async def voice_speak(body: SpeakRequest, request: Request):
 @router.get("/voice/status")
 async def voice_status(request: Request):
     """Current voice assistant state."""
-    from aeon.config.settings import settings
+    from aeon_platform.filesystem.settings import settings
     conv_mgr = request.app.state.voice_manager
     return {
         "sarvam_api_key_set": bool(settings.sarvam_api_key),
