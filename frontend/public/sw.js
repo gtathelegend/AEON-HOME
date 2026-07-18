@@ -1,138 +1,151 @@
-const CACHE_NAME = "aeon-home-pwa-v1";
-const STATIC_ASSETS = [
+/**
+ * ÆON Home — Progressive Web App Service Worker
+ *
+ * Strategy:
+ *   - App shell (HTML, CSS, JS, fonts) → Cache-First (installed once, served fast)
+ *   - API calls (/api/*)               → Network-First with offline fallback JSON
+ *   - Images / icons                   → Stale-While-Revalidate
+ *   - Navigate requests                → Cache-First → offline shell fallback
+ *
+ * Caches:
+ *   aeon-shell-v1   — app shell assets
+ *   aeon-api-v1     — API response cache (fallback only)
+ *   aeon-assets-v1  — images & fonts
+ */
+
+const SHELL_CACHE   = "aeon-shell-v1";
+const API_CACHE     = "aeon-api-v1";
+const ASSETS_CACHE  = "aeon-assets-v1";
+
+const OFFLINE_URL   = "/offline.html";
+const OFFLINE_API   = { status: "offline", message: "ÆON is running in offline mode." };
+
+const SHELL_URLS = [
   "/",
   "/dashboard",
+  "/dashboard/v2",
+  "/offline.html",
   "/manifest.webmanifest",
-  "/aeon-logo.png",
-  "/favicon.ico"
+  "/favicon.ico",
 ];
 
+/* ── Install ──────────────────────────────────────────────────────────────── */
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch((err) => console.log("SW Install cache note:", err));
-    })
+    caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_URLS)).then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
+/* ── Activate ─────────────────────────────────────────────────────────────── */
 self.addEventListener("activate", (event) => {
+  const keep = new Set([SHELL_CACHE, API_CACHE, ASSETS_CACHE]);
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      );
-    })
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => !keep.has(k)).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// IndexedDB helper for Background Sync
-function openSyncDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open("aeon-sync-db", 1);
-    request.onupgradeneeded = (e) => {
-      e.target.result.createObjectStore("sync-queue", { keyPath: "id", autoIncrement: true });
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-async function addToSyncQueue(request) {
-  const db = await openSyncDB();
-  const tx = db.transaction("sync-queue", "readwrite");
-  const body = await request.clone().text();
-  tx.objectStore("sync-queue").add({
-    url: request.url,
-    method: request.method,
-    headers: Array.from(request.headers.entries()),
-    body,
-    timestamp: Date.now()
-  });
-  return tx.complete;
-}
-
-async function replaySyncQueue() {
-  const db = await openSyncDB();
-  const tx = db.transaction("sync-queue", "readwrite");
-  const store = tx.objectStore("sync-queue");
-  const request = store.getAll();
-  
-  return new Promise((resolve) => {
-    request.onsuccess = async () => {
-      const items = request.result;
-      for (const item of items) {
-        try {
-          const req = new Request(item.url, {
-            method: item.method,
-            headers: item.headers,
-            body: item.body
-          });
-          await fetch(req);
-          // Delete on success
-          const delTx = db.transaction("sync-queue", "readwrite");
-          delTx.objectStore("sync-queue").delete(item.id);
-        } catch (err) {
-          console.error("Background sync failed for", item.url, err);
-        }
-      }
-      resolve();
-    };
-  });
-}
-
-self.addEventListener("sync", (event) => {
-  if (event.tag === "aeon-background-sync") {
-    event.waitUntil(replaySyncQueue());
-  }
-});
-
+/* ── Fetch ────────────────────────────────────────────────────────────────── */
 self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-  
-  // Intercept POST requests for background sync if offline
-  if (event.request.method === "POST" && url.pathname.startsWith("/api/")) {
-    if (!navigator.onLine) {
-      event.respondWith(
-        addToSyncQueue(event.request).then(() => {
-          // Register background sync
-          if (self.registration.sync) {
-            self.registration.sync.register("aeon-background-sync");
+  const { request } = event;
+  const url = new URL(request.url);
+
+  /* Skip non-GET and cross-origin */
+  if (request.method !== "GET") return;
+  if (url.origin !== location.origin && !url.hostname.includes("fonts.g")) return;
+
+  /* ── API: Network-First ────────────────────────────────────────────────── */
+  if (url.pathname.startsWith("/api/")) {
+    event.respondWith(
+      fetch(request)
+        .then((res) => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(API_CACHE).then((c) => c.put(request, clone));
           }
-          return new Response(JSON.stringify({ queued: true }), {
-            headers: { "Content-Type": "application/json" }
+          return res;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          return new Response(JSON.stringify(OFFLINE_API), {
+            status: 503,
+            headers: { "Content-Type": "application/json", "X-ÆON-Offline": "true" },
           });
         })
-      );
-      return;
-    }
-  }
-
-  if (event.request.method !== "GET") return;
-  
-  // Ignore websocket and API endpoints for offline cache fallback
-  if (url.pathname.startsWith("/ws/") || url.pathname.startsWith("/api/")) {
+    );
     return;
   }
 
+  /* ── Google Fonts: Stale-While-Revalidate ─────────────────────────────── */
+  if (url.hostname.includes("fonts.g")) {
+    event.respondWith(
+      caches.open(ASSETS_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        const networkPromise = fetch(request).then((res) => {
+          cache.put(request, res.clone());
+          return res;
+        });
+        return cached ?? networkPromise;
+      })
+    );
+    return;
+  }
+
+  /* ── Navigate: Cache-First → offline shell ────────────────────────────── */
+  if (request.mode === "navigate") {
+    event.respondWith(
+      caches.match(request)
+        .then((cached) => cached ?? fetch(request))
+        .catch(() => caches.match(OFFLINE_URL))
+    );
+    return;
+  }
+
+  /* ── Static assets: Cache-First ─────────────────────────────────────────── */
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Fetch background update
-        fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
-            }
-          })
-          .catch(() => {});
-        return cachedResponse;
-      }
-      return fetch(event.request).catch(() => {
-        // Return fallback shell if offline
-        return caches.match("/dashboard") || caches.match("/");
-      });
-    })
+    caches.match(request).then(
+      (cached) =>
+        cached ??
+        fetch(request).then((res) => {
+          if (res.ok && (url.pathname.match(/\.(js|css|woff2?|png|ico|webp|svg)$/) || url.pathname.startsWith("/assets/"))) {
+            caches.open(SHELL_CACHE).then((c) => c.put(request, res.clone()));
+          }
+          return res;
+        })
+    )
   );
 });
+
+/* ── Background Sync — queue voice commands made offline ─────────────────── */
+self.addEventListener("sync", (event) => {
+  if (event.tag === "aeon-voice-queue") {
+    event.waitUntil(flushVoiceQueue());
+  }
+});
+
+async function flushVoiceQueue() {
+  /* Reads queued text commands from IndexedDB and replays them when online */
+  try {
+    const { openDB } = await import("idb");
+    const db = await openDB("aeon-offline-queue", 1);
+    const tx = db.transaction("voice", "readwrite");
+    const all = await tx.store.getAll();
+    for (const item of all) {
+      try {
+        await fetch("/api/v1/voice/text", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: item.text, user_id: item.userId }),
+        });
+        await tx.store.delete(item.id);
+      } catch {
+        /* will retry on next sync */
+      }
+    }
+    await tx.done;
+  } catch {
+    /* idb not available — skip */
+  }
+}

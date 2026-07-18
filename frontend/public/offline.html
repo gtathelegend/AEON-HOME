@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f0f14" />
+  <title>ÆON Home — Offline</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:   oklch(0.10 0.018 280);
+      --card: oklch(0.14 0.018 280 / 0.7);
+      --fg:   oklch(0.96 0.004 280);
+      --muted:oklch(0.55 0.018 280);
+      --glow: oklch(0.65 0.22 295);
+    }
+
+    body {
+      min-height: 100svh;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: grid;
+      place-items: center;
+      padding: 1.5rem;
+      overflow: hidden;
+    }
+
+    /* animated gradient orb */
+    .orb {
+      position: fixed;
+      top: -30vh; left: 50%;
+      transform: translateX(-50%);
+      width: 80vw; height: 60vh;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, oklch(0.55 0.28 295 / 0.35) 0%, transparent 70%);
+      filter: blur(60px);
+      animation: drift 8s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+    @keyframes drift {
+      from { transform: translateX(-55%) scale(1); }
+      to   { transform: translateX(-45%) scale(1.12); }
+    }
+
+    /* dot-grid overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: radial-gradient(circle at 1px 1px, oklch(0.96 0 0 / 0.04) 1px, transparent 0);
+      background-size: 28px 28px;
+      pointer-events: none;
+    }
+
+    .card {
+      position: relative;
+      background: var(--card);
+      border: 1px solid oklch(0.96 0 0 / 0.08);
+      border-radius: 2rem;
+      padding: 2.5rem 2rem;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      backdrop-filter: blur(24px);
+      box-shadow: 0 0 0 1px oklch(0.96 0 0 / 0.04), 0 32px 64px oklch(0 0 0 / 0.4);
+    }
+
+    .logo {
+      width: 64px; height: 64px;
+      border-radius: 1.25rem;
+      margin: 0 auto 1.25rem;
+      background: linear-gradient(135deg, oklch(0.65 0.22 295), oklch(0.60 0.22 240));
+      display: grid; place-items: center;
+      font-size: 1.75rem;
+      box-shadow: 0 0 40px oklch(0.65 0.22 295 / 0.4);
+    }
+
+    h1 {
+      font-size: 1.375rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+
+    .sub {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 1.75rem;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      background: oklch(0.96 0 0 / 0.04);
+      border: 1px solid oklch(0.96 0 0 / 0.06);
+      border-radius: 1rem;
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.625rem;
+      text-align: left;
+      font-size: 0.8rem;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot.orange { background: oklch(0.72 0.20 60); box-shadow: 0 0 8px oklch(0.72 0.20 60 / 0.6); }
+    .dot.green  { background: oklch(0.72 0.18 145); box-shadow: 0 0 8px oklch(0.72 0.18 145 / 0.6); }
+    .dot.purple { background: var(--glow); box-shadow: 0 0 8px oklch(0.65 0.22 295 / 0.6); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.875rem 1.5rem;
+      border-radius: 1rem;
+      border: none;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s;
+      margin-top: 1rem;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary {
+      background: linear-gradient(135deg, oklch(0.65 0.22 295), oklch(0.60 0.22 240));
+      color: white;
+    }
+    .btn-ghost {
+      background: oklch(0.96 0 0 / 0.06);
+      color: var(--fg);
+      border: 1px solid oklch(0.96 0 0 / 0.1);
+    }
+
+    .footer {
+      margin-top: 1.5rem;
+      font-size: 0.7rem;
+      color: var(--muted);
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="orb"></div>
+
+  <div class="card">
+    <div class="logo">Æ</div>
+    <h1>You're Offline</h1>
+    <p class="sub">
+      ÆON Home is running in offline mode. Your edge device is still active —
+      sensors, policy engine, and memory are all running locally.
+    </p>
+
+    <div class="status-row">
+      <span class="dot orange"></span>
+      <span>Network connection unavailable</span>
+    </div>
+    <div class="status-row">
+      <span class="dot green"></span>
+      <span>Edge AI engine running on Snapdragon</span>
+    </div>
+    <div class="status-row">
+      <span class="dot purple"></span>
+      <span>Cached dashboard available</span>
+    </div>
+
+    <button class="btn btn-primary" onclick="window.location.reload()">
+      ↻ Try reconnecting
+    </button>
+    <button class="btn btn-ghost" onclick="history.back()">
+      ← Go back
+    </button>
+
+    <p class="footer">ÆON Home — Persistent Edge Intelligence</p>
+  </div>
+</body>
+</html>
