@@ -125,10 +125,6 @@ flowchart LR
 
     PC -.->|"FP32 ONNX,<br/>manual opt-in"| HUB
     PHONE -.->|"audio only,<br/>if key configured"| SARVAM
-
-    style EDGE fill:#f6f6f4,stroke:#111,stroke-width:2px
-    style CLOUD fill:#fafafa,stroke:#bbb
-    style PC fill:#fff,stroke:#111,stroke-width:2px
 ```
 
 **One command, two destinations.** When you speak a preference, the hub does two things at once: it dispatches the command to the leaf *now*, and it records the preference as training data for *later*. The live log timestamps both paths separately — on the run above, the leaf acknowledged in **460 µs** while the PC recorded in **950 µs**.
