@@ -14,7 +14,7 @@ What it is not doing, and should not be claimed:
     four Cortex-A53 cores. It does not carry the Hexagon NPU that a Snapdragon X
     Elite or an 8-series mobile part does, and AI Hub does not list it as a
     target. Inference on the UNO Q is CPU inference via ONNX Runtime -- entirely
-    adequate for 6,914 parameters, but it is CPU.
+    adequate for 6,978 parameters, but it is CPU.
   * So AI Hub profiling here answers "how does this artefact behave on
     Snapdragon hardware", which is a real and checkable claim, rather than
     "the Arduino runs it on an NPU", which would not be true.

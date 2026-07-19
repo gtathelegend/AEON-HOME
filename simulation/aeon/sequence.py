@@ -7,10 +7,11 @@ be respected". Those depend on recent history, not on the clock alone.
 So the model reads a full day of what the home has been doing, plus where we are
 in the week, plus which appliance is being asked about:
 
-    window   24 steps x 4 channels   =  96
-    context  hour_sin/cos, dow_sin/cos, is_weekend, ambient_z   =   6
-    device one-hot                                              =   4
-                                                        input   = 106
+    window   24 steps x 4 channels                                =  96
+    context  hour_sin/cos, dow_sin/cos, is_weekend, is_holiday,
+             ambient_z                                            =   7
+    device one-hot                                                =   4
+                                                          input   = 107
 """
 
 from __future__ import annotations
@@ -20,14 +21,14 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from . import devices
+from . import devices, holidays
 
 WINDOW = 24              # steps of history the model sees
 CHANNELS = 4             # device_on, level, occupancy, ambient
-CONTEXT = 6              # hour sin/cos, dow sin/cos, is_weekend, ambient z
+CONTEXT = 7              # hour sin/cos, dow sin/cos, is_weekend, is_holiday, ambient z
 STEP_SECONDS = 3600.0    # one step is one hour
 
-INPUT_DIM = WINDOW * CHANNELS + CONTEXT + len(devices.DEVICE_ORDER)   # 106
+INPUT_DIM = WINDOW * CHANNELS + CONTEXT + len(devices.DEVICE_ORDER)   # 107
 
 
 class AlignmentError(Exception):
@@ -104,7 +105,7 @@ class SequenceBuffer:
         ambient_mean: float = 28.0,
         ambient_std: float = 8.0,
     ) -> np.ndarray:
-        """The full 106-value input, shaped [1, 106] for ONNX Runtime."""
+        """The full 107-value input, shaped [1, 107] for ONNX Runtime."""
         window = self.flat()
         if len(window) != WINDOW * CHANNELS:
             raise ValueError(
@@ -161,17 +162,28 @@ def context_features(
     ambient_c: float,
     ambient_mean: float = 28.0,
     ambient_std: float = 8.0,
+    is_holiday: bool | None = None,
 ) -> list[float]:
     """Where we are in the week, and how hot it is relative to training.
 
     Hour and day-of-week are encoded as sin/cos pairs so that 23:00 sits next to
     00:00 instead of at the opposite end of the range.
+
+    `is_holiday` sits beside `is_weekend` rather than replacing it, because the
+    two are not the same claim: a holiday Tuesday is still a Tuesday, and the
+    model is left to decide for itself how much a holiday resembles a Sunday.
+    Hard-coding "treat holidays as weekends" would be us guessing that, and some
+    households genuinely do not.
+
+    Defaults to looking the date up. It is passed in only by tests and by
+    callers replaying a timeline that is not the real calendar.
     """
     import time as _time
 
     lt = _time.localtime(now_ts)
     hour = lt.tm_hour + lt.tm_min / 60.0
     dow = lt.tm_wday
+    holiday = holidays.is_holiday(now_ts) if is_holiday is None else bool(is_holiday)
 
     std = ambient_std if ambient_std > 1e-6 else 1.0
     return [
@@ -180,6 +192,7 @@ def context_features(
         math.sin(2 * math.pi * dow / 7.0),
         math.cos(2 * math.pi * dow / 7.0),
         1.0 if dow >= 5 else 0.0,
+        1.0 if holiday else 0.0,
         (ambient_c - ambient_mean) / std,
     ]
 

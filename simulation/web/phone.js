@@ -147,11 +147,69 @@ function render(s) {
     }
   });
 
+  renderAsks(s.devices);
+
   const learned = $("learned");
   learned.innerHTML = "";
   s.learned_week.forEach((r) => {
     learned.insertAdjacentHTML("beforeend",
       `<li><span class="what">${esc(r.text)}</span><span class="who">${esc(r.label)}</span></li>`);
+  });
+}
+
+/* Suggestions the model was not confident enough to act on by itself.
+   Keyed by what is being proposed, not just by device, so answering a
+   question does not silently suppress a different one about the same
+   appliance an hour later. */
+const dismissed = new Set();
+
+function askKey(d) {
+  return `${d.id}:${d.want_on ? "on" : "off"}:${d.want_level ?? ""}`;
+}
+
+function asksFrom(devices) {
+  return devices.filter((d) => {
+    if (d.gate !== "ask" || !d.online) return false;
+    // Nothing to ask if the appliance is already doing what the model wanted.
+    if (d.want_on === d.on && d.want_level === d.level) return false;
+    return !dismissed.has(askKey(d));
+  });
+}
+
+function renderAsks(devices) {
+  const host = $("asks");
+  const wrap = $("asks-wrap");
+  const asks = asksFrom(devices);
+
+  wrap.hidden = asks.length === 0;
+  host.innerHTML = "";
+
+  asks.forEach((d) => {
+    const what = d.want_on
+      ? `turn ${esc(d.label)} on${d.want_text ? " at " + esc(d.want_text) : ""}`
+      : `turn ${esc(d.label)} off`;
+    const el = document.createElement("div");
+    el.className = "ask";
+    el.innerHTML = `
+      <div class="q">You usually ${what} around now. Want it?</div>
+      <div class="why">not sure enough to act · ${d.confidence.toFixed(3)}</div>
+      <div class="row">
+        <button class="yes">Yes</button>
+        <button class="no">Not now</button>
+      </div>`;
+
+    el.querySelector(".yes").addEventListener("click", () => {
+      send({ typ: "command", device: d.id, on: d.want_on, level: d.want_level,
+             spoken: "approved a suggestion" });
+      dismissed.add(askKey(d));
+      renderAsks(devices);
+    });
+    el.querySelector(".no").addEventListener("click", () => {
+      dismissed.add(askKey(d));
+      renderAsks(devices);
+    });
+
+    host.appendChild(el);
   });
 }
 

@@ -100,7 +100,7 @@ class ScriptedHouse:
         s.policy.cv_auc = 1.0
         s.policy.level_mae = {"ac.living": 0.0, "fan.bedroom": 0.215, "light.living": 12.3}
         s.policy.n_windows = 1944
-        s.policy.params = 6914
+        s.policy.params = 6978
         s.policy.size_bytes = 9835
         s.policy.kind = "int8 ONNX"
         s.policy.sha256 = hashlib.sha256(b"aeon_ts.onnx.v1").hexdigest()

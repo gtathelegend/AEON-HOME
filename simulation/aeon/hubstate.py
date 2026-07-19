@@ -25,9 +25,13 @@ class DeviceState:
     level: float | None = None
     source: str = "idle"           # phone | model | manual | idle
     confidence: float = 0.0
-    gate: str = "abstain"          # act | ask | abstain
+    gate: str = "abstain"          # act | ask | abstain | held
     online: bool = True            # leaf reachable
     changed_at: float = 0.0
+    # What the model wanted this tick, which is only interesting when it differs
+    # from what the appliance is doing -- i.e. when the gate withheld the action.
+    want_on: bool = False
+    want_level: float | None = None
 
     def snapshot(self) -> dict:
         d = devices.get(self.id)
@@ -50,6 +54,11 @@ class DeviceState:
             "gate": self.gate,
             "online": self.online,
             "learned_from": d.learned_from,
+            # Only populated into a question when the gate held the action back;
+            # the phone decides whether it is worth asking about.
+            "want_on": self.want_on,
+            "want_level": self.want_level,
+            "want_text": d.format_level(self.want_level if self.want_on else None),
         }
 
 

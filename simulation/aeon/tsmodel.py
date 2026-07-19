@@ -3,10 +3,10 @@
 Architecture -- two heads, because "should it be on?" and "at what setting?" are
 different questions:
 
-    input (106) -> Dense(32) + tanh -> Dense(1) + sigmoid -> p_on
+    input (107) -> Dense(32) + tanh -> Dense(1) + sigmoid -> p_on
                 -> Dense(32) + tanh -> Dense(1)           -> level
 
-6,914 parameters: 2 x (106*32 + 32 + 32 + 1).
+6,978 parameters: 2 x (107*32 + 32 + 32 + 1).
 
 Why this and not an LSTM/GRU. It sees the same 24-step history, trains in
 seconds without a deep-learning runtime, exports to a few KB of ONNX, and runs
@@ -196,7 +196,7 @@ def timeline_from_usage(device_id: str, usage_rows,
 # ── the network ──────────────────────────────────────────────────────────
 
 def _train_head(X: np.ndarray, y: np.ndarray, classifier: bool, seed: int = 0):
-    """One 106 -> 32 -> 1 head.
+    """One 107 -> 32 -> 1 head.
 
     Trains to convergence, not to an iteration ceiling. An earlier build capped
     at 400 iterations, hit the ceiling every time, and produced an under-trained
@@ -236,7 +236,7 @@ def _export_onnx(clf, reg) -> bytes:
     from onnx import TensorProto, helper, numpy_helper
 
     def head(prefix: str, model, sigmoid: bool):
-        w1 = model.coefs_[0].astype(np.float32)          # [106, 32]
+        w1 = model.coefs_[0].astype(np.float32)          # [107, 32]
         b1 = model.intercepts_[0].astype(np.float32)     # [32]
         w2 = model.coefs_[1].astype(np.float32)          # [32, 1]
         b2 = model.intercepts_[1].astype(np.float32)     # [1]
@@ -516,7 +516,7 @@ def _cross_val_auc(X: np.ndarray, y: np.ndarray, seed: int) -> float | None:
 
     Deliberately n_jobs=1. Parallelising this made it SIX TIMES SLOWER on
     Windows (1.2 s -> 7.3 s): joblib spawns worker processes that each re-import
-    scikit-learn, and that import dwarfs three fits of a 6,914-parameter model.
+    scikit-learn, and that import dwarfs three fits of a 6,978-parameter model.
 
     Capping biases the score *down*, so the guardrail stays conservative: this
     can reject a model that would have passed, never admit one that should have

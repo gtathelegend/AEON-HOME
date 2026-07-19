@@ -363,3 +363,38 @@ button:disabled:hover { border-color: var(--rule); }
   main { grid-template-columns: 1fr; }
   .devices { grid-template-columns: 1fr; }
 }
+
+/* ── "ÆON is asking" ──────────────────────────────────────────────
+   The model wanted something and was not confident enough to do it
+   unasked. Rendered as a question rather than a notification: the
+   whole system is built on nothing happening until the user says so,
+   and a card that only informs would break that promise quietly.
+
+   Carries a heavier rule than a device tile so it reads as needing an
+   answer, without resorting to colour. */
+.asks { display: flex; flex-direction: column; gap: 9px; }
+
+.ask {
+  border: 1px solid var(--ink);
+  padding: 15px 16px 13px;
+}
+
+.ask .q {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+.ask .why {
+  color: var(--ink-3);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 13px;
+}
+
+.ask .row { display: flex; gap: 8px; }
+.ask .row button { flex: 1; padding: 11px 10px; }
+.ask .yes { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.ask .yes:hover { border-color: var(--ink); }

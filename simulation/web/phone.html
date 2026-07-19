@@ -143,6 +143,13 @@
     <button id="say-go">Send</button>
   </div>
 
+  <!-- Only present when the model wanted something and its confidence was too
+       low to act unasked. Empty and hidden the rest of the time. -->
+  <div id="asks-wrap" hidden>
+    <div class="label" style="margin-bottom:11px">ÆON is asking</div>
+    <div class="asks" id="asks"></div>
+  </div>
+
   <div>
     <div class="label" style="margin-bottom:11px">Devices</div>
     <div class="tiles" id="tiles"></div>

@@ -5,7 +5,7 @@ the appliance. The node predicts with no PC involved -- the PC is required to
 learn, never to run.
 
 Execution providers are tried in order. On the Arduino UNO Q's Dragonwing side
-that resolves to CPU on the Cortex-A53 cores, which is what a 6,914-parameter
+that resolves to CPU on the Cortex-A53 cores, which is what a 6,978-parameter
 model needs; QNN is listed first so that the same code accelerates on a part
 that has a Hexagon NPU, without pretending the UNO Q is one.
 """
@@ -39,7 +39,7 @@ class NodeRunner:
         self.last_us = 0.0
 
     def run(self, x: np.ndarray) -> tuple[float, float]:
-        """[1, 106] -> (p_on, level_z). level_z is normalised to [-1, 1]."""
+        """[1, 107] -> (p_on, level_z). level_z is normalised to [-1, 1]."""
         t0 = time.perf_counter()
         p_on, level = self.session.run(None, {self.input_name: x.astype(np.float32)})
         self.last_us = (time.perf_counter() - t0) * 1e6

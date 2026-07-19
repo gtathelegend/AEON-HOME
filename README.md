@@ -159,16 +159,16 @@ flowchart LR
 
 ## The model
 
-### What goes in — 106 features
+### What goes in — 107 features
 
 Every inference reads a **24-hour rolling window**, not an instantaneous sensor value. That is the whole point: the system is learning *"this household turns the light warm after 8 PM"*, which is invisible to any model that only sees the present moment.
 
 | Block | Size | Contents |
 |---|---:|---|
 | **Temporal window** | 96 | 24 hourly steps × 4 channels: `on` (0/1), `level` (normalised to −1…1), `occupancy` (0/1), `ambient` (`(°C − 28) / 8`) |
-| **Context** | 6 | `sin/cos(hour)`, `sin/cos(day-of-week)`, `is_weekend`, ambient z-score |
+| **Context** | 7 | `sin/cos(hour)`, `sin/cos(day-of-week)`, `is_weekend`, **`is_holiday`**, ambient z-score |
 | **Device identity** | 4 | one-hot over `ac.living`, `fan.bedroom`, `light.living`, `vacuum.home` |
-| **Total** | **106** | a single `float32[1, 106]` tensor |
+| **Total** | **107** | a single `float32[1, 107]` tensor |
 
 Levels are normalised per device from their real ranges: AC 16–30 °C, fan 0–100 %, light 2200–6500 K, vacuum 0–100 %.
 
@@ -177,9 +177,9 @@ Levels are normalised per device from their real ranges: AC 16–30 °C, fan 0�
 Two heads sharing one input, trained separately and exported into a single ONNX graph:
 
 ```
-                     ┌─→ Dense(106→32) → tanh → Dense(32→1) → sigmoid → p_on
-  input[1, 106] ─────┤
-                     └─→ Dense(106→32) → tanh → Dense(32→1) →         → level
+                     ┌─→ Dense(107→32) → tanh → Dense(32→1) → sigmoid → p_on
+  input[1, 107] ─────┤
+                     └─→ Dense(107→32) → tanh → Dense(32→1) →         → level
 ```
 
 | | |
@@ -188,7 +188,7 @@ Two heads sharing one input, trained separately and exported into a single ONNX 
 | Hidden units | 32 per head, `tanh` |
 | Optimiser | Adam, `tol=1e-5`, `n_iter_no_change=25`, `max_iter=3000` |
 | L2 penalty | `alpha=1e-4` |
-| **Parameters** | **6,914** — 2 × (106×32 + 32 + 32 + 1) |
+| **Parameters** | **6,978** — 2 × (107×32 + 32 + 32 + 1) |
 | Export | hand-built ONNX graph, opset 13 — `MatMul → Add → Tanh → MatMul → Add [→ Sigmoid]` |
 
 ### What comes out
@@ -210,13 +210,13 @@ Two hard overrides run *after* inference and can only ever turn things **off**: 
 
 ### Why this model
 
-The obvious instinct is to reach for an LSTM or a small transformer, because this looks like a sequence problem. It isn't, quite — and the reasons it isn't are what make a 6,914-parameter network the right answer rather than a compromise.
+The obvious instinct is to reach for an LSTM or a small transformer, because this looks like a sequence problem. It isn't, quite — and the reasons it isn't are what make a 6,978-parameter network the right answer rather than a compromise.
 
 **1 · The signal is periodic, and we hand the periodicity to the model directly.**
 Household behaviour is dominated by two cycles: daily and weekly. Instead of asking a recurrent network to *discover* that structure from raw sequence, the feature builder supplies `sin/cos(hour)` and `sin/cos(day-of-week)` explicitly. Those four numbers encode "9 PM Tuesday is close to 9 PM Wednesday, and 23:59 is close to 00:01" — a fact an LSTM would burn capacity and data learning. Once periodicity is given, what remains is a fixed-width tabular problem, and an MLP is the correct tool for a fixed-width tabular problem.
 
 **2 · The data is small, and it is one household's.**
-This is the constraint that decides everything. A home produces a few thousand hourly windows, not millions of examples. A model with hundreds of thousands of parameters would have enough capacity to memorise a single household's history outright. At 6,914 parameters trained on ~2,600–6,000 windows, capacity and evidence are roughly matched — and the regularisation below pushes effective capacity well below the raw count.
+This is the constraint that decides everything. A home produces a few thousand hourly windows, not millions of examples. A model with hundreds of thousands of parameters would have enough capacity to memorise a single household's history outright. At 6,978 parameters trained on ~2,600–6,000 windows, capacity and evidence are roughly matched — and the regularisation below pushes effective capacity well below the raw count.
 
 **3 · We need a calibrated probability, not just a label.**
 `p_on` is not thresholded at 0.5 and forgotten; it drives a 0.75 / 0.40 confidence gate that decides whether the house acts, asks, or stays quiet. A sigmoid output trained under log-loss gives a usable probability. Tree ensembles give a vote share, which looks like a probability and is not one. Calibration is a functional requirement here, not a nicety.
@@ -301,13 +301,47 @@ Training only runs when you press `RETRAIN`, and a new model may only replace th
 | Situation | What happens |
 |---|---|
 | Holiday, and you're **out** | Already handled, and not by the model. Occupancy is deterministic — an empty room forces `off_when_empty` appliances off regardless of what the model predicted. "Nobody is home" is never a probabilistic judgement. |
-| Holiday, and you're **home on a Tuesday** | The system sees you present at an hour you are normally out. Its input already differs from a normal Tuesday, so the same confidence drop applies and it backs off. It understands weekday-vs-weekend rules, but it does not yet know that a *specific date* is a holiday. |
+| Holiday, and you're **home on a Tuesday** | The model is told the date is a holiday, as **input feature 107**, sitting beside `is_weekend`. |
+
+### The calendar is an input, not a rule
+
+`is_weekend` can say Saturday is not Tuesday. It cannot say that *this* Tuesday is Diwali. That is the one calendar fact no amount of arithmetic on a timestamp will recover, so it is supplied as data:
+
+```jsonc
+// simulation/data/holidays.json
+["2026-01-26", "2026-11-08", "12-25"]   // one-off dates, or MM-DD to recur yearly
+```
+
+Two deliberate choices here:
+
+- **`is_holiday` sits beside `is_weekend` rather than replacing it.** A holiday Tuesday is still a Tuesday. Hard-coding *"treat holidays like Sundays"* would be us guessing on the household's behalf — and plenty of homes genuinely do not behave that way. Giving the model both flags lets it decide how much a holiday resembles a Sunday, per appliance, from your own history.
+- **The built-in list only covers fixed-date national holidays** (Republic Day, Independence Day, Gandhi Jayanti…). Diwali, Holi and Eid are lunar and move every year, so we do not guess them — a wrong flag on a normal working day is worse than no flag on a real holiday. Add those, and your own leave, to the file.
+
+### When it isn't sure, it asks
+
+An uncertain model going quiet is safe but silent. So the `ask` tier now surfaces on the phone as a question:
+
+> **You usually turn AC LIVING on at 23.0 °C around now. Want it?**
+> `NOT SURE ENOUGH TO ACT · 0.612`
+> **[ Yes ]** **[ Not now ]**
+
+`Yes` sends exactly what the model wanted; `Not now` dismisses it. Dismissal is keyed to *the suggestion*, not the device — so declining the AC at 23 °C tonight does not silence a different suggestion about the same AC tomorrow.
+
+The dashboard distinguishes the same four states, so you can watch the model decline to act:
+
+| Card reads | Meaning |
+|---|---|
+| `model · 0.94` | confident, and it acted |
+| `unsure · 0.61` | allowed to act, **chose not to** |
+| `standing by · 0.35` | no real view either way |
+| `held · 0.94` | decided, but automation is off |
+
+> **Note for anyone running the demo:** on the seeded dataset you will see `model` almost exclusively. The training mix is synthesised and internally consistent, so the network is decisive nearly everywhere (`p_on` ≈ 0 or 1), and acting requires only `p_on ≥ 0.808`. The `ask` band is reachable, and tested, but real households produce the messiness that reaches it — clean demo data does not.
 
 ### What we're adding next
 
-- **A holiday flag as one more input**, sitting beside "is it a weekend". The model then learns on its own that holidays behave like Sundays, rather than us hand-coding the rule.
-- **Turning `unsure` into an actual question on the phone** — *"You usually run the AC around now. Want it on?"* Today an uncertain model goes quiet, which is safe but silent. The confidence tier that would drive the prompt is already computed on every tick; it just needs somewhere to appear.
-- **Weighting deliberate corrections above routine actions when training**, so the one evening you overrode the AC counts for more than the twenty-seven evenings you simply let it run.
+- **Wiring the `evidence` term in the confidence score.** It is `0.65 · decisiveness + 0.35 · evidence`, and `evidence` is currently pinned at `1.0`, so confidence is a pure function of how decisive the network is — and a well-fit network is always decisive. Driving it from how consistently recent days agree at this hour is what makes a fever week lower confidence *because the pattern broke*, rather than only because the probability moved.
+- **Weighting deliberate corrections above routine actions when training**, so the one evening you overrode the AC counts for more than the twenty-seven evenings you simply let it run. The `usage` table already records `auto` / `manual` / `phone` per row; training currently ignores the distinction.
 
 ---
 
@@ -350,7 +384,7 @@ We use AI Hub to compile and profile the model on real Snapdragon silicon rather
 compile_job = qai_hub.submit_compile_job(
     model=str(src),
     device=qai_hub.Device("Snapdragon X Elite CRD"),
-    input_specs={"input": (1, 106)},
+    input_specs={"input": (1, 107)},
     options=f"--target_runtime {target_runtime}",
 )
 compiled = compile_job.get_target_model()
@@ -377,7 +411,7 @@ The runtime requests the Qualcomm execution provider first and falls back cleanl
 PREFERRED_PROVIDERS = ["QNNExecutionProvider", "CPUExecutionProvider"]
 ```
 
-On the Arduino UNO Q specifically, the QRB2210 has no Hexagon NPU, so inference there is CPU via ONNX Runtime — which the 6,914-parameter model is sized for.
+On the Arduino UNO Q specifically, the QRB2210 has no Hexagon NPU, so inference there is CPU via ONNX Runtime — which the 6,978-parameter model is sized for.
 
 ---
 
@@ -391,7 +425,7 @@ From the run shown above:
 | Command → PC recorded | **779 µs** | live log, per-command |
 | Checkpoint restore at boot | **2.17 ms** | hub boot log, warm start |
 | Deployment → node ack | **21.2 ms** | `deployments` table |
-| Training time | **3.38 s** | 2,592 windows, 6,914 params |
+| Training time | **3.38 s** | 2,592 windows, 6,978 params |
 | Artifact size | **10,273 B** | SHA-256 verified on arrival |
 | Cross-validated AUC | **1.000** | 3-fold stratified |
 | Per-device level MAE | AC 0.13 °C · fan 0.52 % · light 27.3 K · vacuum 0.89 % | candidate scoring |
@@ -585,17 +619,30 @@ You never state a time. The hub logs each preference against the hour you said i
 
 ## Testing
 
+The simulation suites are **run as scripts, not under pytest** — they take positional arguments that pytest would try to resolve as fixtures.
+
+```bash
+cd simulation
+
+# node, checkpoints, spooling, HMAC          -> 69 checks
+python tests/test_phase2.py
+
+# shapes → synthesis → training → ONNX → INT8 → parity → inference
+# → deployment → a full simulated day        -> 66 checks
+python tests/test_phase3.py
+
+# phone → hub → leaf + PC over the real WebSocket, with the hub running:
+python run.py --reset            # in one terminal
+python tests/test_endtoend.py    # in another                -> 37 checks
+```
+
 ```bash
 # backend + integration suites (53 tests) — from the repo root,
 # with the backend venv active
 pytest tests -v
-
-# simulation: shapes → synthesis → training → export → quantise → parity → inference
-cd simulation
-python -m pytest tests/test_phase2.py tests/test_phase3.py -v
 ```
 
-`tests/test_deployment_pipeline.py` covers packaging and validation. `simulation/tests/test_phase3.py` is the one to read to see the ML path end to end, including the FP32↔INT8 parity assertion and a canary on the 6,914-parameter count.
+`simulation/tests/test_phase3.py` is the one to read to see the ML path end to end: it asserts the FP32↔INT8 decision parity and carries deliberate canaries on the input dimension and the 6,978-parameter count, so adding a feature or a device fails the suite until the change is made on purpose. `tests/test_deployment_pipeline.py` covers packaging and validation.
 
 ---
 
@@ -604,8 +651,10 @@ python -m pytest tests/test_phase2.py tests/test_phase3.py -v
 | | |
 |---|---|
 | ✅ | Simulation hub — dashboard, phone client, UDP discovery, live log |
-| ✅ | 106-feature two-head model: train → ONNX → INT8 → parity-check → deploy |
+| ✅ | 107-feature two-head model: train → ONNX → INT8 → parity-check → deploy |
 | ✅ | Three-gate deployment safety (min windows · CV AUC · beats-incumbent) |
+| ✅ | `is_holiday` calendar feature, user-editable via `data/holidays.json` |
+| ✅ | Uncertain decisions surfaced on the phone as a question, not silence |
 | ✅ | Model deployed to the central node; signed commands fanned out to leaf actuators |
 | ✅ | HMAC-signed manifests, SHA-256 artifact verification, atomic write with rollback |
 | ✅ | Checkpoint / restore with CRC-32 validation |

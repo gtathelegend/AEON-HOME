@@ -18,7 +18,8 @@ import json
 import time
 from pathlib import Path
 
-from . import aihub, aihub_runner, commands, devices, protocol, sequence, sim, tsmodel
+from . import (aihub, aihub_runner, commands, devices, holidays, protocol,
+               sequence, sim, tsmodel)
 from .central import CentralNode
 from .db import Database
 from .hubstate import HubState
@@ -30,6 +31,11 @@ class LiveHouse:
     def __init__(self, data_dir: str | Path = "data") -> None:
         self.dir = Path(data_dir)
         self.dir.mkdir(parents=True, exist_ok=True)
+
+        # Before anything builds a feature vector: the calendar is an input to
+        # the model, so loading it after the first window would train on one
+        # calendar and infer on another.
+        holidays.load(self.dir)
 
         self.state = HubState()
         self.db = Database(self.dir / "aeon.db")
@@ -374,6 +380,8 @@ class LiveHouse:
             ds.gate = decided.get("gate") if decided.get("gate") == "held" else (
                 "act" if ds.confidence >= 0.75 else (
                     "ask" if ds.confidence >= 0.40 else "abstain"))
+            ds.want_on = bool(decided.get("want_on", ds.on))
+            ds.want_level = decided.get("want_level", ds.level)
 
         s.node_online = True
         s.automation = self.central.automation

@@ -362,6 +362,17 @@ class CentralNode:
             self.device_states[device_id]["confidence"] = score
             self.device_states[device_id]["gate"] = decision
 
+            # What the model wanted, kept even when it was not permitted to act
+            # on it. Set after actuate(), which replaces the dict wholesale.
+            #
+            # Without this the snapshot can say "unsure" but not what it was
+            # unsure *about*, so the phone has a hesitation to report and no
+            # question to ask. An uncertain model that goes quiet is safe; one
+            # that can say "you usually run the AC around now -- want it on?"
+            # is the consent loop the rest of the system is built around.
+            self.device_states[device_id]["want_on"] = bool(on)
+            self.device_states[device_id]["want_level"] = level
+
             # Push the APPLIED state back into the window -- what the appliance
             # actually did, not what the model wished for. An off step records
             # no level; writing the model's raw output there poisons the window

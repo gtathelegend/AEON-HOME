@@ -78,20 +78,20 @@ def test_shapes() -> None:
     # are meant to fail the moment a device is added and force the change to be
     # deliberate -- deriving them from the same formula the source uses would
     # assert nothing at all.
-    check("input dimension is 106",
-          sequence.INPUT_DIM == 106, str(sequence.INPUT_DIM))
-    check("96 window + 6 context + 4 device one-hot",
+    check("input dimension is 107",
+          sequence.INPUT_DIM == 107, str(sequence.INPUT_DIM))
+    check("96 window + 7 context + 4 device one-hot",
           sequence.WINDOW * sequence.CHANNELS == 96
-          and sequence.CONTEXT == 6
+          and sequence.CONTEXT == 7
           and len(devices.DEVICE_ORDER) == 4)
-    check("parameter count is 6,914", tsmodel.count_params() == 6914,
+    check("parameter count is 6,978", tsmodel.count_params() == 6978,
           str(tsmodel.count_params()))
 
     buf = SequenceBuffer("ac.living")
     for hour in range(sequence.WINDOW):
         buf.push(Step(True, 24.0, True, 28.0, ts=hour * 3600.0))
     x = buf.model_input(time.time(), 29.0)
-    check("model_input is [1, 106]", x.shape == (1, 106), str(x.shape))
+    check("model_input is [1, 107]", x.shape == (1, 107), str(x.shape))
 
     check("flat() alone is 96 values -- not a model input",
           len(buf.flat()) == 96, str(len(buf.flat())))
@@ -159,7 +159,7 @@ def test_synthesis() -> None:
           all(not s.on for s in empty), f"{sum(s.on for s in empty)} on-steps")
 
     X, y_on, y_level = sequence.build_windows("ac.living", timeline)
-    check("windows have 106 features", X.shape[1] == 106, str(X.shape))
+    check("windows have 107 features", X.shape[1] == 107, str(X.shape))
     check("one window per predictable step",
           len(X) == len(timeline) - sequence.WINDOW, str(len(X)))
     check("both classes present", len(np.unique(y_on)) == 2)
