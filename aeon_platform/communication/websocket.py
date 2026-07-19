@@ -29,6 +29,7 @@ class WebSocketBus:
         self.serial_bridge = None   # needed for real connected status
         self.graph = None           # needed for real node/edge counts
         self.identity_manager = None
+        self._context_engine = None  # needed for fan_speed_percent / fan_pwm telemetry
 
         # Token issuance counter — incremented by auth module
         self._tokens_issued: int = 0
@@ -179,6 +180,18 @@ class WebSocketBus:
                     if self.learning_loop else None
                 ),
             })
+
+        elif msg_type == "fan_set":
+            speed = payload.get("speed", None)
+            if speed is None:
+                state = payload.get("state", False)
+                speed = 100 if state else 0
+            speed = max(0, min(100, int(speed)))
+            if self._context_engine is not None:
+                await self._context_engine.record_manual_override("fan_speed", speed)
+            if self.serial_bridge is not None:
+                await self.serial_bridge.send_fan_speed(speed)
+            await self.publish("fan_speed_updated", {"speed": speed})
 
         elif msg_type == "trigger_migration":
             if self.identity_manager:
@@ -358,6 +371,18 @@ class WebSocketBus:
             motion_str = "Waiting for sensor..."
             eeprom_pct = 0
 
+        # ── Fan speed from context engine ─────────────────────────────────────
+        fan_speed_percent = 0
+        fan_pwm = 0
+        if hasattr(self, "_context_engine") and self._context_engine is not None:
+            try:
+                ctx = await self._context_engine.get_current_context()
+                dev_ctx = ctx.get("device", {})
+                fan_speed_percent = dev_ctx.get("fan_speed_percent", 0)
+                fan_pwm = dev_ctx.get("fan_pwm", 0)
+            except Exception:
+                pass
+
         # ── QNN / NPU ─────────────────────────────────────────────────────────
         if self.model_manager is not None:
             npu_status = self.model_manager.get_status()
@@ -498,6 +523,8 @@ class WebSocketBus:
                 "temperature": temp_val,
                 "humidity": hum_val,
                 "motionState": motion_str,
+                "fanSpeedPercent": fan_speed_percent,
+                "fanPwm": fan_pwm,
             },
             "snapdragonStatus": {
                 "connected": True,

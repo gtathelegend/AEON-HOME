@@ -39,11 +39,17 @@ void LearningEngine::processFeedback(const FeedbackEvent& event, AeonState* stat
             state->avg_confidence_x100 -= 500; // Decrement confidence by 5%
         }
         
-        // If consecutive overrides occur, adapt preferred temperature setting
-        if (_consecutive_corrections >= 3 && strcmp(event.target, "temp") == 0) {
-            state->preferred_temp = event.value;
-            _protocol.sendPreferenceUpdated("preferred_temp", state->preferred_temp);
-            _consecutive_corrections = 0;
+        // If consecutive overrides occur, adapt preferred temperature or fan speed settings
+        if (_consecutive_corrections >= 3) {
+            if (strcmp(event.target, "temp") == 0) {
+                state->preferred_temp = event.value;
+                _protocol.sendPreferenceUpdated("preferred_temp", state->preferred_temp);
+                _consecutive_corrections = 0;
+            } else if (strcmp(event.target, "fan") == 0 || strcmp(event.target, "fan_speed") == 0) {
+                state->preferred_fan_speed = event.value;
+                _protocol.sendPreferenceUpdated("preferred_fan_speed", state->preferred_fan_speed);
+                _consecutive_corrections = 0;
+            }
         }
 
         // Slowly adapt policy weight downwards on manual overrides
@@ -59,8 +65,13 @@ void LearningEngine::processFeedback(const FeedbackEvent& event, AeonState* stat
             _protocol.sendPolicyAdapted("local_policy", _policy_weight);
         }
     } else if (event.type == FEEDBACK_PREFERENCE_CHANGE) {
-        state->preferred_temp = event.value;
-        _protocol.sendPreferenceUpdated("preferred_temp", state->preferred_temp);
+        if (strcmp(event.target, "temp") == 0) {
+            state->preferred_temp = event.value;
+            _protocol.sendPreferenceUpdated("preferred_temp", state->preferred_temp);
+        } else if (strcmp(event.target, "fan") == 0 || strcmp(event.target, "fan_speed") == 0) {
+            state->preferred_fan_speed = event.value;
+            _protocol.sendPreferenceUpdated("preferred_fan_speed", state->preferred_fan_speed);
+        }
         _consecutive_corrections = 0;
     }
 }

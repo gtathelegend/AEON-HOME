@@ -13,7 +13,35 @@
 #include "storage_manager.h"
 #include "../runtime/runtime_config.h"
 #include <Arduino.h>
+
+#if defined(ARDUINO_UNO_Q)
+class MockEEPROMClass {
+private:
+    uint8_t _data[1024]; // 1KB mock EEPROM in RAM
+public:
+    void begin() {
+        memset(_data, 0, sizeof(_data));
+    }
+    void commit() {}
+    
+    template<typename T>
+    void get(size_t offset, T& value) {
+        if (offset + sizeof(T) <= sizeof(_data)) {
+            memcpy(&value, &_data[offset], sizeof(T));
+        }
+    }
+    
+    template<typename T>
+    void put(size_t offset, const T& value) {
+        if (offset + sizeof(T) <= sizeof(_data)) {
+            memcpy(&_data[offset], &value, sizeof(T));
+        }
+    }
+};
+static MockEEPROMClass EEPROM;
+#else
 #include <FlashStorage_STM32.h>
+#endif
 
 // Slot byte offsets in flash address space
 static const size_t SLOT_A_MAGIC_OFF = 0;
@@ -46,8 +74,8 @@ bool StorageManager::writeSlot(uint8_t slot, AeonState* state) {
     EEPROM.put(magicOff, magic);
     EEPROM.put(dataOff, *state);
 
-#if defined(EEPROM_EMULATION_SIZE)
-    // FlashStorage_STM32 requires explicit commit
+#if defined(EEPROM_EMULATION_SIZE) || defined(ARDUINO_UNO_Q)
+    // FlashStorage_STM32 or MockEEPROM requires explicit commit/flush
     EEPROM.commit();
 #endif
     return true;
@@ -77,7 +105,7 @@ bool StorageManager::readSlot(uint8_t slot, AeonState* out) {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 void StorageManager::init() {
-#if defined(EEPROM_EMULATION_SIZE)
+#if defined(EEPROM_EMULATION_SIZE) || defined(ARDUINO_UNO_Q)
     EEPROM.begin();
 #endif
     _ready = true;
@@ -155,6 +183,9 @@ void StorageManager::applyDefaults(AeonState* state) {
     // ── Learning stats (v5 fields) ──────────────────────────────────────────
     state->dream_run_count       = 0;
     state->feedback_count        = 0;
+
+    // ── User Profile preferences extension (v6 fields) ────────────────────────
+    state->preferred_fan_speed   = 30.0f;
 
     state->crc32                = 0;
 }

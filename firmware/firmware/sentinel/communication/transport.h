@@ -4,9 +4,9 @@
 #pragma once
 #include <stdint.h>
 
-class ITransport {
+class IAeonTransport {
 public:
-    virtual ~ITransport() {}
+    virtual ~IAeonTransport() {}
 
     virtual bool connect() = 0;
     virtual void disconnect() = 0;

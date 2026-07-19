@@ -69,8 +69,13 @@ class ContextAggregator:
         # Apply overrides to device/environmental states if relevant
         if "temperature" in overrides:
             environmental["temperature"] = overrides["temperature"]
+        if "fan_speed" in overrides:
+            device["fan_speed_percent"] = overrides["fan_speed"]
+            device["fan_pwm"] = int(overrides["fan_speed"] * 2.55)
         if "relay_1_state" in overrides:
             device["relay_1_state"] = overrides["relay_1_state"]
+            device["fan_speed_percent"] = 100 if overrides["relay_1_state"] else 0
+            device["fan_pwm"] = 255 if overrides["relay_1_state"] else 0
 
         # ── 3. Validate ──
         self._validate_environmental(environmental)
@@ -103,5 +108,9 @@ class ContextAggregator:
     def _validate_device(self, dev: Dict[str, Any]) -> None:
         if "serial_connected" not in dev:
             dev["serial_connected"] = False
+        if "fan_speed_percent" not in dev:
+            dev["fan_speed_percent"] = 0
+        if "fan_pwm" not in dev:
+            dev["fan_pwm"] = 0
         if "relay_1_state" not in dev:
             dev["relay_1_state"] = False

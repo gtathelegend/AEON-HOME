@@ -37,6 +37,7 @@ public:
     void handlePolicyUpdate(const char* json_str);
     void handleModelUpdate(const char* json_str);
     void handleRelaySet(const char* json_str);
+    void handleFanSet(const char* json_str);
     void handleBuzzer(const char* json_str);
     void handleCheckpoint(const char* json_str);
 

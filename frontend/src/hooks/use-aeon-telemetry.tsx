@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef, createContext, useContext } from "react";
 
 export interface TelemetryState {
-  serialStatus: {
+    serialStatus: {
     connected: boolean;
     port: string;
     baud: number;
@@ -11,6 +11,8 @@ export interface TelemetryState {
     temperature: number | null;
     humidity: number | null;
     motionState: string;
+    fanSpeedPercent: number;
+    fanPwm: number;
   };
   snapdragonStatus: {
     connected: boolean;
@@ -89,6 +91,8 @@ const DISCONNECTED_STATE: TelemetryState = {
     temperature: null,
     humidity: null,
     motionState: "Arduino disconnected",
+    fanSpeedPercent: 0,
+    fanPwm: 0,
   },
   snapdragonStatus: {
     connected: false,
@@ -156,6 +160,8 @@ const DEFAULT_MOCK_TELEMETRY: TelemetryState = {
     temperature: 21.6,
     humidity: 48.0,
     motionState: "Idle",
+    fanSpeedPercent: 0,
+    fanPwm: 0,
   },
   snapdragonStatus: {
     connected: true,
@@ -340,6 +346,10 @@ export function useAeonTelemetry() {
     return sendCommand("start_listening");
   }, [sendCommand]);
 
+  const setFanSpeed = useCallback((speed: number) => {
+    return sendCommand("fan_set", { speed: Math.round(Math.max(0, Math.min(100, speed))) });
+  }, [sendCommand]);
+
   return {
     telemetry,
     isConnected,
@@ -348,6 +358,7 @@ export function useAeonTelemetry() {
     flagFalseAlarm,
     triggerMigration,
     startListening,
+    setFanSpeed,
   };
 }
 

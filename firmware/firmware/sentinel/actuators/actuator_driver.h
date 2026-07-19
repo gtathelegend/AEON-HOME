@@ -8,7 +8,7 @@ class ActuatorDriver {
 public:
     ActuatorDriver();
     void init();
-    void setRelay(uint8_t relay_id, bool state);
+    void setFanSpeed(uint8_t percent);
     void setLed(bool state);
     void playBeep(uint8_t beep_type);
 };

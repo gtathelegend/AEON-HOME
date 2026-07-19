@@ -7,13 +7,15 @@
 
 #if defined(ARDUINO_UNOWIFIR4)
 #include <WiFiS3.h>
+#elif defined(ARDUINO_UNO_Q)
+// Native support is implemented directly in the WebSockets library for ARDUINO_UNO_Q.
 #else
 #include <WiFi.h>
 #endif
 
 #include <WebSocketsClient.h>
 
-class WiFiTransport : public ITransport {
+class WiFiTransport : public IAeonTransport {
 public:
     WiFiTransport();
 

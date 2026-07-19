@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import { useAeon } from "@/hooks/use-aeon-telemetry";
 import { fetchGraphVisualize, fetchSensorsHistory } from "@/lib/api";
 import {
@@ -37,6 +37,7 @@ import {
   WifiOff,
   FlaskConical,
   BarChart3,
+  Wind,
 } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
 import { cn } from "@/lib/utils";
@@ -2402,6 +2403,137 @@ function SystemServices() {
 }
 
 /* ================================================================
+   FAN SPEED WIDGET — L298N PWM Control
+   ================================================================ */
+function FanSpeedWidget() {
+  const { telemetry, setFanSpeed } = useAeon();
+  const serial = telemetry.serialStatus;
+  const [localSpeed, setLocalSpeed] = useState(serial.fanSpeedPercent ?? 0);
+  const [pending, setPending] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep slider in sync with live telemetry (but not while user is dragging)
+  useEffect(() => {
+    if (!pending) setLocalSpeed(serial.fanSpeedPercent ?? 0);
+  }, [serial.fanSpeedPercent, pending]);
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = Number(e.target.value);
+    setLocalSpeed(v);
+    setPending(true);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setFanSpeed(v);
+      setPending(false);
+    }, 250);
+  }, [setFanSpeed]);
+
+  const pwm = Math.round((localSpeed / 100) * 255);
+  const tint = localSpeed === 0
+    ? "oklch(0.6 0.01 275)"
+    : localSpeed < 40
+    ? "var(--aeon-cyan)"
+    : localSpeed < 75
+    ? "oklch(0.75 0.16 55)"
+    : "oklch(0.65 0.22 27)";
+
+  const label =
+    localSpeed === 0 ? "Off" :
+    localSpeed < 30 ? "Low" :
+    localSpeed < 60 ? "Medium" :
+    localSpeed < 85 ? "High" : "Max";
+
+  return (
+    <div className="glass-card relative overflow-hidden rounded-3xl p-5 sm:p-6">
+      {/* ambient glow */}
+      <div
+        className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full opacity-40 blur-3xl transition-colors duration-700"
+        style={{ background: tint }}
+      />
+      <div className="relative flex flex-col gap-4">
+        {/* header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span
+              className="grid h-9 w-9 place-items-center rounded-xl transition-colors duration-500"
+              style={{ background: `color-mix(in oklab, ${tint} 18%, white)`, color: tint }}
+            >
+              <Wind className={`h-4 w-4 ${localSpeed > 0 ? "animate-spin" : ""}`} style={{ animationDuration: localSpeed > 0 ? `${Math.max(0.4, 2 - localSpeed / 60)}s` : undefined }} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">Fan Speed</p>
+              <p className="text-[11px] text-muted-foreground">L298N PWM · ENA D6</p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-0.5">
+            <span className="text-2xl font-semibold tabular-nums" style={{ color: tint }}>
+              {localSpeed}%
+            </span>
+            <span className="text-[11px] text-muted-foreground">PWM {pwm} / 255</span>
+          </div>
+        </div>
+
+        {/* slider */}
+        <div className="relative flex flex-col gap-2">
+          <input
+            id="fan-speed-slider"
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={localSpeed}
+            onChange={handleChange}
+            className="w-full h-2 cursor-pointer appearance-none rounded-full outline-none"
+            style={{
+              background: `linear-gradient(to right, ${tint} 0%, ${tint} ${localSpeed}%, oklch(0.88 0.01 275) ${localSpeed}%, oklch(0.88 0.01 275) 100%)`,
+              accentColor: tint,
+            }}
+          />
+          <div className="flex justify-between text-[10px] text-muted-foreground px-0.5">
+            <span>Off</span><span>Low</span><span>Med</span><span>High</span><span>Max</span>
+          </div>
+        </div>
+
+        {/* status row */}
+        <div className="flex items-center justify-between">
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium"
+            style={{ background: `color-mix(in oklab, ${tint} 14%, white)`, color: tint }}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${localSpeed > 0 ? "animate-pulse" : ""}`} style={{ background: tint }} />
+            {label}
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            {serial.connected ? "Arduino online" : "Simulation mode"}
+          </span>
+        </div>
+
+        {/* quick presets */}
+        <div className="flex gap-2">
+          {[0, 25, 50, 75, 100].map((v) => (
+            <button
+              key={v}
+              id={`fan-preset-${v}`}
+              onClick={() => { setLocalSpeed(v); setFanSpeed(v); }}
+              className="flex-1 rounded-xl py-1.5 text-[11px] font-medium transition-all hover:scale-[1.04]"
+              style={{
+                background: localSpeed === v
+                  ? `color-mix(in oklab, ${tint} 22%, white)`
+                  : "oklch(0.95 0.005 275)",
+                color: localSpeed === v ? tint : "oklch(0.5 0.02 275)",
+                border: localSpeed === v ? `1px solid ${tint}` : "1px solid oklch(0.9 0.005 275)",
+              }}
+            >
+              {v === 0 ? "Off" : `${v}%`}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
    DashboardV2 — main home page
    ================================================================ */
 export function DashboardV2() {
@@ -2489,6 +2621,17 @@ export function DashboardV2() {
         </div>
       </section>
 
+      {/* 4b. Fan Speed Control */}
+      <Reveal>
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Climate Control</h2>
+            <p className="text-xs text-muted-foreground">L298N PWM fan control · AI-assisted speed recommendations.</p>
+          </div>
+          <FanSpeedWidget />
+        </section>
+      </Reveal>
+
       {/* 5. Persistent Pulse */}
       <section>
         <Pulse />
@@ -2518,6 +2661,7 @@ export function DashboardV2() {
     </div>
   );
 }
+
 
 /* ================================================================
    EVENTS — Full event timeline backed by /api/v1/events

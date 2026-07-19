@@ -94,6 +94,7 @@ class PolicyDecision:
     frame_seq:  int
     token_id:   str | None = None   # set by auth module when token is issued
     latency_ms: float = 0.0         # NPU inference latency
+    fan_speed:  int = 0
 
 
 @dataclass

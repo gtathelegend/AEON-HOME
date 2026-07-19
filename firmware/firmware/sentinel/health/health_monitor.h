@@ -14,7 +14,7 @@ struct SystemHealth {
 
 class HealthMonitor {
 public:
-    HealthMonitor(ITransport& transport);
+    HealthMonitor(IAeonTransport& transport);
     void init();
 
     /** Collects system health metrics. */
@@ -24,5 +24,5 @@ public:
     void check();
 
 private:
-    ITransport& _transport;
+    IAeonTransport& _transport;
 };

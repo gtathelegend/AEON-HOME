@@ -242,6 +242,7 @@ class PolicyEngine:
             reason=decision_dict["reason"],
             frame_seq=frame.seq,
             latency_ms=latency_ms,
+            fan_speed=decision_dict.get("fan_speed", 0),
         )
 
     # ── Manual override ───────────────────────────────────────────────────────
@@ -256,22 +257,33 @@ class PolicyEngine:
             val_bool = (action == "on" or action is True)
 
             # Record learning signal in ProfileEngine
+            if target == "temp":
+                setting = "preferred_temperature"
+                value = float(action) if str(action).replace('.', '', 1).isdigit() else (25.0 if val_bool else 18.0)
+            elif target == "fan" or target == "fan_speed" or target == "relay" or target == "relay_1":
+                setting = "preferred_fan_speed"
+                value = float(action) if str(action).replace('.', '', 1).isdigit() else (100.0 if val_bool else 0.0)
+            else:
+                setting = "comfort_preference"
+                value = action
+
             await self.profile_engine.record_signal(
                 user_id="default_user",
-                setting="preferred_temperature" if target == "temp" else "comfort_preference",
-                value=25.0 if val_bool else 18.0,
+                setting=setting,
+                value=value,
                 source="manual_override",
             )
 
             # Stage in Context Engine
+            speed = int(action) if str(action).isdigit() else (100 if val_bool else 0)
             await self.context_engine.record_manual_override(
-                target="relay_1_state" if target == "relay" else target,
-                value=val_bool,
+                target="fan_speed",
+                value=speed,
             )
 
             # Physical actuation
-            if target == "relay" or target == "relay_1":
-                await self._serial.send_relay(1, val_bool)
+            if target == "fan" or target == "fan_speed" or target == "relay" or target == "relay_1":
+                await self._serial.send_fan_speed(speed)
             elif target == "buzzer":
                 await self._serial.send_buzzer(200 if val_bool else 0)
 
@@ -314,7 +326,6 @@ class PolicyEngine:
         # Send physical actuation command to firmware
         if decision.action == "notify":
             await self._serial.send_buzzer(200)
-        elif decision.action == "actuate_relay":
-            await self._serial.send_relay(1, True)
-        elif decision.action == "deactivate_relay":
-            await self._serial.send_relay(1, False)
+        elif decision.action in ("actuate_fan", "actuate_relay", "deactivate_relay"):
+            speed = decision.fan_speed if decision.action == "actuate_fan" else (100 if decision.action == "actuate_relay" else 0)
+            await self._serial.send_fan_speed(speed)

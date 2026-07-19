@@ -78,7 +78,8 @@ class SafetyPolicy(BasePolicy):
         # Prevent freezing / overheating equipment
         if temp < 5.0:
             return {
-                "action": "actuate_relay",
+                "action": "actuate_fan",
+                "fan_speed": 100,
                 "reason": f"FREEZE_PROTECTION_TRIGGERED: {temp}°C",
                 "confidence": 0.95,
                 "suggested_action": "turn_on_heating",
@@ -125,10 +126,20 @@ class UserOverridePolicy(BasePolicy):
     ) -> Optional[Dict[str, Any]]:
         beh = context.get("behavioral", {})
         overrides = beh.get("recent_overrides", {})
-        if "relay_1_state" in overrides:
+        if "fan_speed" in overrides:
+            val = overrides["fan_speed"]
+            return {
+                "action": "actuate_fan",
+                "fan_speed": val,
+                "reason": f"USER_OVERRIDE_FAN: {val}%",
+                "confidence": 1.0,
+                "suggested_action": "fan_speed_adjust",
+            }
+        elif "relay_1_state" in overrides:
             val = overrides["relay_1_state"]
             return {
-                "action": "actuate_relay" if val else "deactivate_relay",
+                "action": "actuate_fan",
+                "fan_speed": 100 if val else 0,
                 "reason": f"USER_OVERRIDE_RELAY: {val}",
                 "confidence": 1.0,
                 "suggested_action": "relay_actuate",
@@ -160,8 +171,11 @@ class ComfortPolicy(BasePolicy):
         comfort_mode = comfort_pref.get("current_value", "comfort")
 
         if comfort_mode == "comfort" and abs(temp - pref_temp) > 3.0:
+            deviation = temp - pref_temp
+            speed = min(100, max(0, int(deviation * 20)))
             return {
-                "action": "actuate_relay" if temp > pref_temp else "deactivate_relay",
+                "action": "actuate_fan",
+                "fan_speed": speed,
                 "reason": f"COMFORT_CLIMATE_DEVIATION: temp={temp}°C (pref={pref_temp}°C)",
                 "confidence": pref_conf,
                 "suggested_action": "climate_adjust",
@@ -202,7 +216,8 @@ class OptimizationPolicy(BasePolicy):
         # If sleeping/away, enable eco mode
         if act_name in ("Sleeping", "Away"):
             return {
-                "action": "deactivate_relay",
+                "action": "actuate_fan",
+                "fan_speed": 0,
                 "reason": f"OPTIMIZATION_ECO_MODE: activity={act_name}",
                 "confidence": 0.80,
                 "suggested_action": "eco_saving",

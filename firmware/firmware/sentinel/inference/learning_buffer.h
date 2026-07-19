@@ -58,7 +58,7 @@ public:
      * @param transport   Active ITransport instance for sending
      * @param state       AeonState pointer for persisting updated head/count
      */
-    void flush(ITransport& transport, AeonState* state);
+    void flush(IAeonTransport& transport, AeonState* state);
 
     /** Persist head and count to AeonState. */
     void persist(AeonState* state) const;

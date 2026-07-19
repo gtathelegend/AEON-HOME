@@ -79,22 +79,38 @@ class ReasoningEngine:
         decision_id = str(uuid.uuid4())
         timestamp = datetime.now(timezone.utc).isoformat()
         
+        # Find fan speed from winning candidate
+        fan_speed = 0
+        for cand in candidate_decisions:
+            if cand.get("action") == winning_alt.action and cand.get("policy") == winning_alt.policy:
+                fan_speed = cand.get("fan_speed", 0)
+                break
+
+        # Determine target device and outcome
+        if "fan" in winning_alt.action or "relay" in winning_alt.action:
+            target_device = "fan"
+            expected_outcome = "fan_speed_adjusted"
+        else:
+            target_device = "buzzer" if "notify" in winning_alt.action else "system_idle"
+            expected_outcome = "alarm_sounded" if "notify" in winning_alt.action else "system_idle"
+
         decision = {
             "decision_id": decision_id,
             "timestamp": timestamp,
             "selected_policy": winning_alt.policy,
             "requested_action": winning_alt.action,
+            "fan_speed": fan_speed,
             "reason": winning_alt.reason,
             "confidence": winning_alt.score,
             "priority": self._get_policy_priority(winning_alt.policy, policies),
-            "target_device": "relay_1" if "relay" in winning_alt.action else "buzzer",
+            "target_device": target_device,
             "supporting_context": context,
             "activity": activity.get("activity", "Idle"),
             "model_version": context.get("runtime", {}).get("active_model_version", 0),
             "evidence_list": [e.to_dict() for e in evidence_list],
             "alternative_actions": [a.to_dict() for a in alternatives],
             "reasoning_trace": self.decision_graph.get_influences(f"policy:{winning_alt.policy}"),
-            "expected_outcome": "relay_actuated" if "actuate" in winning_alt.action else "alarm_sounded" if "notify" in winning_alt.action else "system_idle",
+            "expected_outcome": expected_outcome,
             "execution_status": "pending",
         }
 

@@ -28,7 +28,7 @@ void LearningBuffer::append(const LearningRecord& record) {
     // (ring semantics: oldest is silently discarded)
 }
 
-void LearningBuffer::flush(ITransport& transport, AeonState* state) {
+void LearningBuffer::flush(IAeonTransport& transport, AeonState* state) {
     if (_count == 0) return;
 
     // Determine start index for ordered traversal

@@ -5,7 +5,7 @@
 #include "../runtime/runtime_config.h"
 #include <ArduinoJson.h>
 
-AeonProtocol::AeonProtocol(ITransport& transport)
+AeonProtocol::AeonProtocol(IAeonTransport& transport)
     : _transport(transport) {}
 
 void AeonProtocol::sendSensorUpdate(const SensorReading* reading, uint32_t seq, uint32_t model_v,

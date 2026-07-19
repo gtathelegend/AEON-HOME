@@ -72,7 +72,8 @@ class DeviceContextProvider(IContextProvider):
             "serial_connected": serial_status.get("connected", False),
             "serial_port": serial_status.get("port", "unknown"),
             "registered_devices_count": len(devices),
-            "relay_1_state": False,  # Managed behaviorally
+            "fan_speed_percent": 0,
+            "fan_pwm": 0,
         }
 
 

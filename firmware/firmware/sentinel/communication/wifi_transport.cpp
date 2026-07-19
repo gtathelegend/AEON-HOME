@@ -32,6 +32,12 @@ WiFiTransport::WiFiTransport()
 }
 
 bool WiFiTransport::connect() {
+#if defined(ARDUINO_UNO_Q)
+    // 1. Initialize the Router Bridge to the Qualcomm MPU
+    if (!Bridge.begin()) {
+        return false;
+    }
+#else
     // 1. Connect to WiFi
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -43,6 +49,7 @@ bool WiFiTransport::connect() {
             return false;
         }
     }
+#endif
 
     // 2. Connect WebSocket
     _webSocket.begin(BACKEND_HOST, BACKEND_PORT, BACKEND_WS_PATH);
@@ -55,7 +62,9 @@ bool WiFiTransport::connect() {
 
 void WiFiTransport::disconnect() {
     _webSocket.disconnect();
+#if !defined(ARDUINO_UNO_Q)
     WiFi.disconnect();
+#endif
     _connected = false;
 }
 
@@ -75,7 +84,11 @@ int WiFiTransport::receive(char* buf, uint16_t max_len) {
 }
 
 bool WiFiTransport::isConnected() {
+#if defined(ARDUINO_UNO_Q)
+    return _webSocket.isConnected();
+#else
     return (WiFi.status() == WL_CONNECTED) && _webSocket.isConnected();
+#endif
 }
 
 void WiFiTransport::flush() {
@@ -86,9 +99,14 @@ bool WiFiTransport::reconnect() {
     unsigned long now = millis();
     if (now - _last_reconnect_attempt >= WS_RECONNECT_INTERVAL) {
         _last_reconnect_attempt = now;
+#if defined(ARDUINO_UNO_Q)
+        // Bridge does not need manual reconnection as it is a local bus,
+        // WebSocketsClient will auto-reconnect on the next tick.
+#else
         if (WiFi.status() != WL_CONNECTED) {
             WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
         }
+#endif
         return isConnected();
     }
     return false;

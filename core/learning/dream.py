@@ -140,10 +140,11 @@ class DreamState:
                 for h, count in new_rules:
                     rule_id = f"dream_rule_hour_{h}"
                     rule_payload = {
-                        "type": "time_based_sensitivity",
+                        "type": "time_based_fan_speed",
                         "hour": h,
                         "corrections": count,
-                        "action": "lower_threshold",
+                        "action": "set_fan_speed",
+                        "fan_speed": 45,  # continuous-valued fan speed prediction
                         "synthesized_at": datetime.now(tz=timezone.utc).isoformat(),
                     }
                     await self._graph.add_policy(rule_id, rule_payload)

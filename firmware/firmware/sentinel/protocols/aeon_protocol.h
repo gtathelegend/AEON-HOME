@@ -6,7 +6,7 @@
 
 class AeonProtocol {
 public:
-    AeonProtocol(ITransport& transport);
+    AeonProtocol(IAeonTransport& transport);
 
     // ── Existing messages ──────────────────────────────────────────────────
     void sendSensorUpdate(const SensorReading* reading, uint32_t seq, uint32_t model_v,
@@ -64,5 +64,5 @@ public:
     void sendRuntimeEvaluation(float decision_quality, float override_freq);
 
 private:
-    ITransport& _transport;
+    IAeonTransport& _transport;
 };

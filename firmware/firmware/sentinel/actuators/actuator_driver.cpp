@@ -10,19 +10,24 @@ void ActuatorDriver::init() {
     pinMode(PIN_LED, OUTPUT);
     digitalWrite(PIN_LED, LOW);
 
-    pinMode(PIN_RELAY_1, OUTPUT);
-    digitalWrite(PIN_RELAY_1, LOW);
-
-    pinMode(PIN_RELAY_2, OUTPUT);
-    digitalWrite(PIN_RELAY_2, LOW);
+    pinMode(PIN_FAN_PWM, OUTPUT);
+    pinMode(PIN_FAN_IN1, OUTPUT);
+    pinMode(PIN_FAN_IN2, OUTPUT);
+    digitalWrite(PIN_FAN_IN1, HIGH);
+    digitalWrite(PIN_FAN_IN2, LOW);
+    analogWrite(PIN_FAN_PWM, 0);
 
     pinMode(PIN_BUZZER, OUTPUT);
     digitalWrite(PIN_BUZZER, LOW);
 }
 
-void ActuatorDriver::setRelay(uint8_t relay_id, bool state) {
-    uint8_t pin = (relay_id == 1) ? PIN_RELAY_1 : PIN_RELAY_2;
-    digitalWrite(pin, state ? HIGH : LOW);
+void ActuatorDriver::setFanSpeed(uint8_t percent) {
+    if (percent > 100) percent = 100;
+    // Map 0-100% to 0-255 PWM
+    uint8_t pwm = (percent * 255) / 100;
+    digitalWrite(PIN_FAN_IN1, HIGH);
+    digitalWrite(PIN_FAN_IN2, LOW);
+    analogWrite(PIN_FAN_PWM, pwm);
 }
 
 void ActuatorDriver::setLed(bool state) {

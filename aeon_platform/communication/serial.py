@@ -196,7 +196,13 @@ class SerialWriter:
         return await self.send_json({
             "typ": "relay_set",
             "relay": relay_id,
-            "state": state
+            "state": state,
+        })
+
+    async def send_fan_speed(self, speed: int) -> bool:
+        return await self.send_json({
+            "typ": "fan_set",
+            "speed": speed,
         })
 
     async def send_buzzer(self, duration_ms: int = 200) -> bool:

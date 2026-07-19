@@ -12,6 +12,8 @@
  *   - All other modules access state through CheckpointManager.
  */
 #pragma once
+#include <stddef.h>
+#include <stdint.h>
 #include "runtime_state.h"
 
 class StorageManager {

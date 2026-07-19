@@ -13,8 +13,9 @@
 #define PIN_PIR        3    // HC-SR501 PIR motion sensor (HIGH = motion)
 #define PIN_BUTTON     4    // False alarm button (LOW when pressed, INPUT_PULLUP)
 #define PIN_LED        5    // Status / warning LED
-#define PIN_RELAY_1    7    // General purpose relay 1
-#define PIN_RELAY_2    8    // General purpose relay 2
+#define PIN_FAN_PWM    6    // L298N ENA (PWM speed control)
+#define PIN_FAN_IN1    7    // L298N IN1
+#define PIN_FAN_IN2    8    // L298N IN2
 #define PIN_BUZZER     9    // Piezo buzzer via tone()
 #define DHT_TYPE       DHT11
 
@@ -51,7 +52,7 @@
 #define MSG_QUEUE_ENTRY_LEN    512    // Max bytes per queued message
 
 // ── Storage (Flash EEPROM Emulation) ─────────────────────────────────────────
-#define STORAGE_MAGIC          0xAE07  // v5: extended AeonState with learning/dream statistics (70 bytes)
+#define STORAGE_MAGIC          0xAE08  // v6: extended AeonState with preferred_fan_speed (74 bytes)
 #define STORAGE_SLOT_A         0       // Primary ping-pong slot index
 #define STORAGE_SLOT_B         1       // Secondary ping-pong slot index
 #define STORAGE_MAX_WRITES     50000   // STM32U5 enhanced flash write endurance

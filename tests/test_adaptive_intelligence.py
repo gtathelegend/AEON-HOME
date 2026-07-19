@@ -220,5 +220,5 @@ async def test_policy_pipeline_override_resolution() -> None:
     )
     
     assert decision["selected_policy"] == "user_override_policy"
-    assert decision["requested_action"] == "actuate_relay"
+    assert decision["requested_action"] == "actuate_fan"
     assert decision["priority"] == 5

@@ -11,7 +11,8 @@ static void routerCallback(const char* typ, const char* json_str, void* context)
 
     if      (strcmp(typ, "policy_update")       == 0) mgr->handlePolicyUpdate(json_str);
     else if (strcmp(typ, "model_update")        == 0) mgr->handleModelUpdate(json_str);
-    else if (strcmp(typ, "relay_set")           == 0) mgr->handleRelaySet(json_str);
+    else if (strcmp(typ, "relay_set")           == 0) mgr->handleFanSet(json_str);
+    else if (strcmp(typ, "fan_set")             == 0) mgr->handleFanSet(json_str);
     else if (strcmp(typ, "buzzer")              == 0) mgr->handleBuzzer(json_str);
     else if (strcmp(typ, "checkpoint")          == 0) mgr->handleCheckpoint(json_str);
     else if (strcmp(typ, "deployment_start")    == 0) mgr->handleDeploymentStart(json_str);
@@ -161,6 +162,7 @@ bool RuntimeManager::stage09_policy_init() {
     _router.registerHandler("policy_update",       routerCallback, this);
     _router.registerHandler("model_update",        routerCallback, this);
     _router.registerHandler("relay_set",           routerCallback, this);
+    _router.registerHandler("fan_set",             routerCallback, this);
     _router.registerHandler("buzzer",              routerCallback, this);
     _router.registerHandler("checkpoint",          routerCallback, this);
     _router.registerHandler("deployment_start",    routerCallback, this);
@@ -426,12 +428,24 @@ void RuntimeManager::handleModelUpdate(const char* json_str) {
 }
 
 void RuntimeManager::handleRelaySet(const char* json_str) {
+    handleFanSet(json_str);
+}
+
+void RuntimeManager::handleFanSet(const char* json_str) {
     StaticJsonDocument<128> doc;
     DeserializationError error = deserializeJson(doc, json_str);
     if (error) return;
 
-    bool relay_state = doc["state"];
-    _actuators.setLed(relay_state);
+    uint8_t speed = 0;
+    if (doc.containsKey("speed")) {
+        speed = doc["speed"];
+    } else if (doc.containsKey("state")) {
+        bool state = doc["state"];
+        speed = state ? 100 : 0;
+    }
+
+    _actuators.setFanSpeed(speed);
+    _actuators.setLed(speed > 0);
 }
 
 void RuntimeManager::handleBuzzer(const char* json_str) {
