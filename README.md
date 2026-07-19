@@ -135,7 +135,7 @@ flowchart LR
     CENTRAL["🧠 <b>Central node</b><br>Arduino UNO Q<br>holds the model<br>inference · decisions<br>checkpoints"]
     PHONE["📱 <b>Phone</b><br>Android / PWA<br>state a preference<br>approve a routine"]
 
-    subgraph LEAVES["🔌 Leaf actuators · ESP32 + relay — no model, no NPU"]
+    subgraph LEAVES["🔌 Leaf actuators · ESP32 + relay"]
         L1["💡 Light"]
         L2["🌀 Fan"]
         L3["❄️ AC"]
