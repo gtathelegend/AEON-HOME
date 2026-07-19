@@ -142,11 +142,9 @@ flowchart LR
         L4["🤖 Vacuum"]
     end
 
-    PC ==>|"signed INT8 ONNX<br>the model lands here"| CENTRAL
-    CENTRAL -->|"usage history over TCP<br>spools if the PC is asleep"| PC
     PHONE -->|"WebSocket<br>preference + approval"| CENTRAL
-    CENTRAL ==>|"signed commands<br>over the home Wi-Fi AP"| LEAVES
-    LEAVES -->|"HMAC-verified ack"| CENTRAL
+    PC ==>|"⬇ signed INT8 ONNX — the model lands here<br>⬆ usage history over TCP, spools if the PC is asleep"| CENTRAL
+    CENTRAL ==>|"⬇ signed commands over the home Wi-Fi AP<br>⬆ HMAC-verified ack"| LEAVES
 ```
 
 **Why the model lives on the central node.** Putting inference on the node removes the PC from the control loop entirely. The laptop can be asleep, closed, or off — the house still behaves, because the node holds the model, the checkpoint and the schedule. The PC is a *training* node, not a dependency. If it is unreachable, usage history spools to local storage and replays when it comes back, so a preference is never lost to a sleeping laptop.
