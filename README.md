@@ -130,23 +130,22 @@ Every number there was produced by the run, not typed into a slide.
 The model is trained on the AI PC and **deployed to the central node**. The central node then runs inference locally and drives the appliances over the home Wi-Fi access point. The leaves never see a model.
 
 ```mermaid
-flowchart TB
-    PHONE["📱 Phone — Android / PWA<br>state a preference · approve a routine"]
-    CENTRAL["🧠 Central node — Arduino UNO Q<br><b>holds the model</b><br>runs inference · decides · checkpoints"]
-    PC["💻 Snapdragon AI PC — training node<br>builds windows · trains · quantizes to INT8"]
+flowchart LR
+    PC["💻 <b>Snapdragon AI PC</b><br>training node<br>builds windows · trains<br>quantizes to INT8"]
+    CENTRAL["🧠 <b>Central node</b><br>Arduino UNO Q<br>holds the model<br>inference · decisions<br>checkpoints"]
+    PHONE["📱 <b>Phone</b><br>Android / PWA<br>state a preference<br>approve a routine"]
 
-    subgraph LEAVES["Leaf actuators · ESP32 + relay — no model, no NPU"]
-        direction LR
+    subgraph LEAVES["🔌 Leaf actuators · ESP32 + relay — no model, no NPU"]
         L1["💡 Light"]
         L2["🌀 Fan"]
         L3["❄️ AC"]
         L4["🤖 Vacuum"]
     end
 
-    PHONE -->|"WebSocket · preference + approval"| CENTRAL
-    CENTRAL -->|"usage history over TCP<br>spools to eMMC if the PC is asleep"| PC
-    PC -->|"signed INT8 ONNX artifact<br>the model lands here"| CENTRAL
-    CENTRAL -->|"signed commands over the home Wi-Fi AP"| LEAVES
+    PC ==>|"signed INT8 ONNX<br>the model lands here"| CENTRAL
+    CENTRAL -->|"usage history over TCP<br>spools if the PC is asleep"| PC
+    PHONE -->|"WebSocket<br>preference + approval"| CENTRAL
+    CENTRAL ==>|"signed commands<br>over the home Wi-Fi AP"| LEAVES
     LEAVES -->|"HMAC-verified ack"| CENTRAL
 ```
 
