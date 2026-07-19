@@ -1,0 +1,43 @@
+<!-- Robot vacuum, seen from above: a disc with a bumper, a lidar turret and
+     two side brushes. Drawn in the same weight as ic_fan / ic_ac so the four
+     device cards read as one set. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?android:attr/colorForeground">
+
+    <!-- body -->
+    <path
+        android:pathData="M12,2.5 A9.5,9.5 0 1 1 11.99,2.5 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.2" />
+
+    <!-- front bumper: the flat leading edge -->
+    <path
+        android:pathData="M4.2,8.6 A9.5,9.5 0 0 1 19.8,8.6"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.2" />
+
+    <!-- lidar turret -->
+    <path
+        android:pathData="M12,10.2 A1.8,1.8 0 1 1 11.99,10.2 Z"
+        android:fillColor="#FF000000" />
+
+    <!-- side brushes -->
+    <path
+        android:pathData="M6.4,15.4 L4.1,17.1 M6.4,15.4 L4.6,14.4 M6.4,15.4 L6.0,17.6"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.1"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M17.6,15.4 L19.9,17.1 M17.6,15.4 L19.4,14.4 M17.6,15.4 L18.0,17.6"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.1"
+        android:strokeLineCap="round" />
+</vector>

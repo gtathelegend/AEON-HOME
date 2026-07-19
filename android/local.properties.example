@@ -1,0 +1,17 @@
+# Copy to local.properties and fill in. local.properties is gitignored.
+#
+# sdk.dir is written by Android Studio the first time you open the project.
+# sdk.dir=C\:\\Users\\you\\AppData\\Local\\Android\\Sdk
+
+# Where the hub is. BOTH OPTIONAL: the app finds the hub by UDP broadcast on
+# the local network, which is what survives the laptop's IP changing between
+# your desk and the venue. Set these only as a fallback for a network that
+# drops broadcast -- the app never asks the user for an address either way.
+# hub.host=192.168.1.42
+# hub.port=8800
+
+# Sarvam API key for STT (Saarika/Saaras) and TTS (Bulbul).
+# Get one at https://dashboard.sarvam.ai
+# The app builds and runs without it -- the mic is disabled and the tiles,
+# sliders and typed input still work.
+sarvam.key=your_key_here

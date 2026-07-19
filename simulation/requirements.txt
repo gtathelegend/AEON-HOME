@@ -1,0 +1,10 @@
+# Phase 1-2: hub, dashboard, phone client
+fastapi>=0.115
+uvicorn>=0.34
+websockets>=14.0
+
+# Phase 3: training on the AI PC, inference on the node
+numpy>=1.26
+scikit-learn>=1.5
+onnx>=1.17
+onnxruntime>=1.20

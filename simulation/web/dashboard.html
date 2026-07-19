@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ÆON Home — Hub</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="shell">
+
+  <header>
+    <div class="wordmark"><b>ÆON</b> HOME <span>·</span> HUB</div>
+    <div class="clock"><span id="clock">--:--</span><small id="clock-day">---</small></div>
+    <div class="spacer"></div>
+
+    <div class="hdr-stat">
+      <div class="label">Room</div>
+      <div class="v"><span id="hdr-temp">--</span> <span class="dim">·</span> <span id="hdr-occ">--</span></div>
+    </div>
+    <div class="hdr-stat">
+      <div class="label">Phone</div>
+      <div class="v"><span class="dot" id="phone-dot"></span><span id="phone-text">not connected</span></div>
+    </div>
+    <div class="hdr-stat">
+      <div class="label">Node</div>
+      <div class="v"><span class="dot live" id="node-dot"></span><span id="node-text">connecting</span></div>
+    </div>
+  </header>
+
+  <div class="rule"></div>
+
+  <main>
+    <div class="col left">
+
+      <section>
+        <div class="sec-head">
+          <div class="label">Devices</div>
+          <div class="label">Leaves · dumb actuators, no model</div>
+        </div>
+        <div class="devices" id="devices"></div>
+      </section>
+
+      <section>
+        <div class="sec-head">
+          <div class="label">Live log</div>
+          <div class="label">One command · two destinations</div>
+        </div>
+        <div class="log" id="log"></div>
+      </section>
+
+    </div>
+
+    <div class="col right">
+      <section>
+
+        <div class="label">Model</div>
+        <div class="version">v<span id="p-ver">0</span></div>
+        <dl class="kv">
+          <dt>CV AUC</dt>      <dd class="big" id="p-auc">--</dd>
+          <dt>Artefact</dt>    <dd id="p-size">--</dd>
+          <dt>Cloud bytes</dt> <dd class="big" id="p-cloud">0</dd>
+        </dl>
+        <div id="spool-row" style="display:none">
+          <dl class="kv" style="margin-top:9px">
+            <dt>Spooled</dt><dd class="big" id="p-spool">0</dd>
+          </dl>
+        </div>
+
+        <div class="rule" style="margin:20px 0"></div>
+
+        <!-- Consent, not a setting. With this off the model still learns and
+             still scores, it simply may not switch anything. -->
+        <div class="auto-row">
+          <div class="auto-state" id="auto-state">AUTOMATION ON</div>
+          <div class="auto-note" id="auto-note">the model may act on what it has learned</div>
+          <button id="btn-auto">Disable automation</button>
+        </div>
+
+        <div class="rule" style="margin:20px 0"></div>
+
+        <div class="btn-row">
+          <button data-send='{"typ":"retrain"}' id="btn-train">Retrain</button>
+          <button data-send='{"typ":"redeploy"}' id="btn-deploy" disabled>Redeploy</button>
+        </div>
+
+        <!-- Candidate: filled by Retrain, read by Redeploy. Hidden until a
+             training run has actually produced a verdict. -->
+        <div id="cand" class="panel" style="display:none">
+          <div class="label" style="margin-bottom:6px">Candidate</div>
+          <div class="verdict" id="cand-verdict">--</div>
+          <dl class="kv">
+            <dt>CV AUC</dt>   <dd id="cand-auc">--</dd>
+            <dt>Windows</dt>  <dd id="cand-windows">--</dd>
+            <dt>Observed</dt> <dd id="cand-observed">--</dd>
+            <dt>Trained in</dt><dd id="cand-secs">--</dd>
+          </dl>
+          <ul class="mae" id="cand-mae"></ul>
+        </div>
+
+        <!-- Qualcomm AI Hub: compile + profile on real Snapdragon silicon.
+             Runs in the background because a job takes minutes. -->
+        <div id="hub" class="panel" style="display:none">
+          <div class="label" style="margin-bottom:6px">Qualcomm AI Hub</div>
+          <div class="verdict" id="hub-state">--</div>
+          <dl class="kv">
+            <dt>On device</dt> <dd class="big" id="hub-us">--</dd>
+            <dt>Local CPU</dt> <dd id="hub-local">--</dd>
+            <dt>Peak memory</dt><dd id="hub-mem">--</dd>
+            <dt>Compile job</dt><dd id="hub-cjob">--</dd>
+            <dt>Profile job</dt><dd id="hub-pjob">--</dd>
+          </dl>
+        </div>
+
+        <div class="rule" style="margin:20px 0"></div>
+
+        <div class="label" style="margin-bottom:6px">Learned</div>
+        <ul class="learned" id="learned"></ul>
+
+      </section>
+    </div>
+  </main>
+
+</div>
+<script src="/static/dashboard.js"></script>
+</body>
+</html>
