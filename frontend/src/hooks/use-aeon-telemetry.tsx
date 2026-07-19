@@ -229,7 +229,7 @@ const DEFAULT_MOCK_TELEMETRY: TelemetryState = {
   ],
 };
 
-const isDemoModeEnabled = import.meta.env.VITE_DEMO_MODE === "true";
+const isDemoModeEnabled = false;
 const INITIAL_STATE = isDemoModeEnabled ? DEFAULT_MOCK_TELEMETRY : DISCONNECTED_STATE;
 
 export function useAeonTelemetry() {
