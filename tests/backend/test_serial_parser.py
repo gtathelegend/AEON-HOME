@@ -113,3 +113,69 @@ def test_truncated_frame_no_result():
     # Feed only half
     results = feed_frame(parser, raw[:len(raw) // 2])
     assert results == []
+
+
+@pytest.mark.asyncio
+async def test_serial_manager_json_parsing():
+    from aeon_platform.communication.serial import SerialManager
+    import asyncio
+
+    parsed_frames = []
+    parsed_events = []
+
+    async def on_frame(f):
+        parsed_frames.append(f)
+
+    async def on_event(e):
+        parsed_events.append(e)
+
+    manager = SerialManager("COM10", 115200, on_frame=on_frame, on_event=on_event)
+
+    class DummyReader:
+        def __init__(self, lines):
+            self.lines = lines
+            self.idx = 0
+        async def readline(self):
+            if self.idx < len(self.lines):
+                res = self.lines[self.idx]
+                self.idx += 1
+                return res
+            return b""
+
+    sample_json = b'{"protocol_version":1,"typ":"sensor_update","temp":24.5,"humidity":52.0,"motion":1,"sequence":12}\n'
+    reader = DummyReader([sample_json])
+    await manager._pump(reader)
+
+    assert len(parsed_frames) == 1
+    assert parsed_frames[0].temperature == 24.5
+    assert parsed_frames[0].humidity == 52.0
+    assert parsed_frames[0].motion is True
+    assert parsed_frames[0].seq == 12
+
+
+@pytest.mark.asyncio
+async def test_serial_writer_attach_serial():
+    from aeon_platform.communication.serial import SerialWriter
+
+    writer = SerialWriter()
+    written_chunks = []
+
+    class DummyTransportWriter:
+        def write(self, data):
+            written_chunks.append(data)
+        async def drain(self):
+            pass
+
+        def get_extra_info(self, name):
+            return None
+
+    transport_writer = DummyTransportWriter()
+    writer.attach_serial(transport_writer)
+    assert writer.is_connected is True
+
+    ok = await writer.send_fan_speed(75)
+    assert ok is True
+    assert len(written_chunks) == 1
+    assert b'"typ": "fan_set"' in written_chunks[0]
+    assert b'"speed": 75' in written_chunks[0]
+

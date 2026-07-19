@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 #include "runtime/runtime_manager.cpp"
+#include "communication/serial_transport.cpp"
 #include "communication/wifi_transport.cpp"
 #include "communication/message_queue.cpp"
 #include "protocols/aeon_protocol.cpp"

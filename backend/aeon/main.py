@@ -61,6 +61,26 @@ async def main() -> None:
     serial_writer    = SerialWriter()
     sensor_processor = SensorProcessor(memory=memory, ws_bus=ws_bus)
     event_processor  = EventProcessor(memory=memory, ws_bus=ws_bus)
+
+    # ── New Modules ───────────────────────────────────────────────────────────
+    serial_writer    = SerialWriter()
+    sensor_processor = SensorProcessor(memory=memory, ws_bus=ws_bus)
+    event_processor  = EventProcessor(memory=memory, ws_bus=ws_bus)
+
+    from aeon_platform.communication.serial import SerialManager
+    log.info("system.init_serial_manager", port=settings.serial_port, baud=settings.serial_baud)
+
+    async def on_serial_frame(frame):
+        await sensor_processor.on_feature_frame(frame)
+        await policy.on_feature_frame(frame)
+
+    serial_bridge = SerialManager(
+        port=settings.serial_port,
+        baud=settings.serial_baud,
+        on_frame=on_serial_frame,
+        on_event=event_processor.on_event,
+        writer=serial_writer,
+    )
     model_manager    = ModelManager(qnn=qnn, model_dir=settings.model_dir)
     identity_manager = IdentityManager(graph=graph)
     device_registry  = DeviceRegistry(graph=graph, ws_bus=ws_bus)
@@ -112,6 +132,7 @@ async def main() -> None:
         checkpoint_service=checkpoint_service,
         event_bus=event_bus,
     )
+    serial_bridge._gateway = communication_gateway
 
     # ── Wire cross-module dependencies ────────────────────────────────────────
     # WebSocket bus gets references to every real data source
@@ -120,12 +141,10 @@ async def main() -> None:
     ws_bus.learning_loop    = learning_loop
     ws_bus.policy           = policy
     ws_bus.device_registry  = device_registry
-    ws_bus.serial_bridge    = serial_writer
+    ws_bus.serial_bridge    = serial_bridge
     ws_bus.voice_manager    = voice_manager
     ws_bus.sensor_processor = sensor_processor
     ws_bus.graph            = graph        # for real node/edge counts
-    ws_bus.identity_manager = identity_manager
-
     # Learning loop gets bus so DreamState can broadcast progress stages
     learning_loop.attach_bus(ws_bus)
     # Give DreamState the real knowledge graph
@@ -133,21 +152,6 @@ async def main() -> None:
 
     # Voice manager gets bus so it can publish voice_status events
     voice_manager.attach_bus(ws_bus)
-
-    # WebSocket bus needs a reference to a bridge-like object for telemetry status
-    class DummyBridge:
-        def __init__(self, writer):
-            self._frames_parsed = 0
-            self._writer = writer
-        def get_status(self):
-            return {
-                "connected": self._writer.is_connected,
-                "port": "Wi-Fi (Gateway)",
-                "baud": 115200,
-                "frames_parsed": self._frames_parsed,
-                "last_frame_ts": None
-            }
-    ws_bus.serial_bridge = DummyBridge(serial_writer)
 
     app      = create_app(
         memory=memory,
@@ -184,6 +188,8 @@ async def main() -> None:
         tg.create_task(ws_bus.run(),         name="ws-bus")
         tg.create_task(metrics.run(),        name="metrics-exporter")
         tg.create_task(learning_loop.run(),  name="learning-loop")
+        if serial_bridge:
+            tg.create_task(serial_bridge.run(), name="serial-bridge")
         tg.create_task(
             __import__("uvicorn").Server(
                 __import__("uvicorn").Config(

@@ -9,6 +9,7 @@
 #include "../sensors/sensor_driver.h"
 #include "../features/feature_extractor.h"
 #include "../actuators/actuator_driver.h"
+#include "../communication/serial_transport.h"
 #include "../communication/wifi_transport.h"
 #include "../protocols/aeon_protocol.h"
 #include "../protocols/command_router.h"
@@ -70,7 +71,7 @@ private:
     SensorDriver      _sensors;
     FeatureExtractor  _features;
     ActuatorDriver    _actuators;
-    WiFiTransport     _transport;
+    AeonSerialTransport   _transport;
     AeonProtocol      _protocol;
     CommandRouter     _router;
     Scheduler         _scheduler;

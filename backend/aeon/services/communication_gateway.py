@@ -47,7 +47,7 @@ class CommunicationGateway:
             self._active_sockets.remove(websocket)
         log.info("gateway.connection_closed", client=websocket.client)
 
-    async def handle_incoming(self, data: str, websocket: WebSocket) -> None:
+    async def handle_incoming(self, data: str, websocket: WebSocket | None = None) -> None:
         """Parse, validate signature/auth, and route payload to correct service."""
         try:
             payload = json.loads(data)
@@ -76,8 +76,8 @@ class CommunicationGateway:
             # Route to respective service
             if typ == "sensor_update":
                 frame = FeatureFrame.from_json(payload)
-                # Count frames parsed
-                if hasattr(websocket.app.state, "serial_bridge") and websocket.app.state.serial_bridge:
+                # Count frames parsed if websocket app state is present
+                if websocket is not None and hasattr(websocket, "app") and hasattr(websocket.app.state, "serial_bridge") and websocket.app.state.serial_bridge:
                     websocket.app.state.serial_bridge._frames_parsed += 1
                 
                 await self.telemetry_service.ingest_frame(frame)
@@ -97,8 +97,8 @@ class CommunicationGateway:
 
             elif typ in ("memory_status", "feedback_event", "model_ack", "policy_ack"):
                 event = AeonEvent.from_json(payload)
-                # Dispatch event handler callback
-                if hasattr(websocket.app.state, "event_processor") and websocket.app.state.event_processor:
+                # Dispatch event handler callback if websocket app state is present
+                if websocket is not None and hasattr(websocket, "app") and hasattr(websocket.app.state, "event_processor") and websocket.app.state.event_processor:
                     await websocket.app.state.event_processor.on_event(event)
 
         except json.JSONDecodeError:

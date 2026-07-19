@@ -41,8 +41,8 @@ class FeatureFrame:
             mean_temp=float(data.get("mean_t", 0.0)),
             var_temp=float(data.get("var_t", 0.0)),
             delta_motion=float(data.get("d_motion", 0.0)),
-            timestamp_ms=int(data.get("ts", 0)),
-            seq=int(data.get("seq", 0)),
+            timestamp_ms=int(data.get("ts", data.get("timestamp_ms", 0))),
+            seq=int(data.get("seq", data.get("sequence", 0))),
         )
 
 

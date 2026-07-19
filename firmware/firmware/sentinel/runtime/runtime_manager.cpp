@@ -54,7 +54,7 @@ RuntimeManager::RuntimeManager()
 
 // ── Main Tick ────────────────────────────────────────────────────────────────
 void RuntimeManager::tick() {
-    // 1. Keep WiFi and WebSocket alive
+    // 1. Keep USB Serial transport ticking
     _transport.tick();
 
     // 2. Read inbound buffer from transport and route commands
@@ -127,15 +127,15 @@ bool RuntimeManager::stage04_checkpoint_recover() {
 bool RuntimeManager::stage05_wifi_init() {
     bool ok = _transport.connect();
     if (ok) {
-        Serial.println("[BOOT] Stage 5: WiFi association [OK]");
+        Serial.println("[BOOT] Stage 5: USB Serial association [OK]");
     } else {
-        Serial.println("[BOOT] Stage 5: WiFi association [FAIL]");
+        Serial.println("[BOOT] Stage 5: USB Serial association [FAIL]");
     }
     return true;
 }
 
 bool RuntimeManager::stage06_transport_init() {
-    Serial.println("[BOOT] Stage 6: Transport Initialization [OK]");
+    Serial.println("[BOOT] Stage 6: Serial Transport Initialization [OK]");
     return true;
 }
 

@@ -40,6 +40,8 @@ backend/**/__pycache__/
 backend/**/*.pyc
 *.pyc
 *.pyo
+*.db-wal
+*.db-shm
 .pytest_cache/
 
 # ── Environment secrets (never commit) ───────────────────────────────────────

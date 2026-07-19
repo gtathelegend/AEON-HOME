@@ -139,11 +139,12 @@ class CommandType:
 
 class SerialWriter:
     """
-    Sends COMMAND JSON payloads to the Arduino over the WebSocket transport.
+    Sends COMMAND JSON payloads to the Arduino over USB Serial or WebSocket transport.
     """
 
     def __init__(self) -> None:
         self._sockets: list[WebSocket] = []
+        self._serial_transport_writer: Any = None
         self._seq: int = 0
         self._lock = asyncio.Lock()
         self._commands_sent: int = 0
@@ -151,23 +152,31 @@ class SerialWriter:
     def attach(self, websocket: WebSocket) -> None:
         if websocket not in self._sockets:
             self._sockets.append(websocket)
-        log.info("serial_writer.attached", clients=len(self._sockets))
+        log.info("serial_writer.attached_ws", clients=len(self._sockets))
 
     def detach(self, websocket: WebSocket) -> None:
         if websocket in self._sockets:
             self._sockets.remove(websocket)
-        log.info("serial_writer.detached", clients=len(self._sockets))
+        log.info("serial_writer.detached_ws", clients=len(self._sockets))
+
+    def attach_serial(self, writer: Any) -> None:
+        self._serial_transport_writer = writer
+        log.info("serial_writer.attached_serial")
+
+    def detach_serial(self) -> None:
+        self._serial_transport_writer = None
+        log.info("serial_writer.detached_serial")
 
     @property
     def is_connected(self) -> bool:
-        return len(self._sockets) > 0
+        return self._serial_transport_writer is not None or len(self._sockets) > 0
 
     @property
     def commands_sent(self) -> int:
         return self._commands_sent
 
     async def send_json(self, payload: dict) -> bool:
-        if not self._sockets:
+        if not self.is_connected:
             log.warning("serial_writer.not_connected — command dropped", typ=payload.get("typ"))
             return False
 
@@ -177,18 +186,28 @@ class SerialWriter:
             
             import json
             json_str = json.dumps(payload) + "\n"
+            sent_count = 0
 
-            success_count = 0
-            for ws in self._sockets:
+            # 1. Send via direct USB Serial port
+            if self._serial_transport_writer is not None:
+                try:
+                    self._serial_transport_writer.write(json_str.encode("utf-8"))
+                    await self._serial_transport_writer.drain()
+                    sent_count += 1
+                    log.info("Command Sent via Serial", typ=payload.get("typ"), seq=self._seq)
+                except Exception:
+                    log.exception("serial_writer.serial_send_error")
+
+            # 2. Send via connected WebSocket clients (if any)
+            for ws in list(self._sockets):
                 try:
                     await ws.send_text(json_str)
-                    success_count += 1
+                    sent_count += 1
                 except Exception:
-                    log.exception("serial_writer.send_error")
+                    log.exception("serial_writer.ws_send_error")
 
-            if success_count > 0:
+            if sent_count > 0:
                 self._commands_sent += 1
-                log.debug("serial_writer.sent", typ=payload.get("typ"), seq=self._seq)
                 return True
             return False
 
@@ -235,6 +254,11 @@ class SerialWriter:
 
 
 class SerialBridge:
+    """
+    Dedicated SerialManager / SerialBridge continuously reading from USB Serial (COM10).
+    Auto-connects on startup and auto-reconnects on disconnect.
+    """
+
     def __init__(
         self,
         port: str,
@@ -242,13 +266,15 @@ class SerialBridge:
         on_frame: FrameCallback,
         on_event: EventCallback | None = None,
         writer: Any = None,
-        reconnect_delay: float = 5.0,
+        gateway: Any = None,
+        reconnect_delay: float = 3.0,
     ) -> None:
         self._port = port
         self._baud = baud
         self._on_frame = on_frame
         self._on_event = on_event
         self._writer = writer
+        self._gateway = gateway
         self._reconnect_delay = reconnect_delay
         self._parser = FrameParser()
         self._stop_event = asyncio.Event()
@@ -292,56 +318,122 @@ class SerialBridge:
                 )
                 self._connected = True
                 self._connected_since = datetime.now(tz=timezone.utc)
-                log.info("serial.connected", port=self._port, baud=self._baud)
+                log.info("Serial Connected", port=self._port, baud=self._baud)
 
                 if self._writer is not None:
-                    self._writer.attach(transport_writer)
+                    if hasattr(self._writer, "attach_serial"):
+                        self._writer.attach_serial(transport_writer)
+                    else:
+                        self._writer.attach(transport_writer)
 
                 try:
                     await self._pump(reader)
                 finally:
                     self._connected = False
                     if self._writer is not None:
-                        self._writer.detach()
+                        if hasattr(self._writer, "detach_serial"):
+                            self._writer.detach_serial()
+                        else:
+                            self._writer.detach()
 
             except Exception as exc:
                 self._connected = False
                 self._errors += 1
                 log.warning(
-                    "serial.disconnected",
-                    exc=str(exc),
+                    "Serial Disconnected",
+                    error=str(exc),
                     retry_in=self._reconnect_delay,
                 )
                 await asyncio.sleep(self._reconnect_delay)
 
     async def _pump(self, reader: asyncio.StreamReader) -> None:
         while not self._stop_event.is_set():
-            chunk = await reader.read(256)
+            chunk = await reader.readline()
             if not chunk:
                 break
             self._bytes_received += len(chunk)
+            log.info("Packet Received", bytes_len=len(chunk))
+            
+            # 1. Parse as binary stream
             for byte in chunk:
                 result = self._parser.feed(byte)
-                if result is None:
-                    continue
-                if isinstance(result, FeatureFrame):
-                    self._frames_parsed += 1
-                    self._last_frame_ts = datetime.now(tz=timezone.utc)
-                    try:
-                        await self._on_frame(result)
-                    except Exception:
-                        self._errors += 1
-                        log.exception("serial.frame_handler_error")
-                elif isinstance(result, AeonEvent):
-                    self._events_parsed += 1
-                    log.info("serial.event", category=result.category,
-                             name=result.name, arg=result.arg)
-                    if self._on_event is not None:
+                if result is not None:
+                    if isinstance(result, FeatureFrame):
+                        self._frames_parsed += 1
+                        self._last_frame_ts = datetime.now(tz=timezone.utc)
+                        log.info("Packet Parsed", typ="binary_feature_frame", seq=result.seq)
                         try:
-                            await self._on_event(result)
+                            await self._on_frame(result)
+                            log.info("Broadcast Sent", type="sensor_update")
                         except Exception:
                             self._errors += 1
-                            log.exception("serial.event_handler_error")
+                            log.exception("serial.frame_handler_error")
+                    elif isinstance(result, AeonEvent):
+                        self._events_parsed += 1
+                        log.info("Packet Parsed", typ="binary_event", category=result.category, seq=result.seq)
+                        if self._on_event is not None:
+                            try:
+                                await self._on_event(result)
+                                log.info("Broadcast Sent", type="event_update")
+                            except Exception:
+                                self._errors += 1
+                                log.exception("serial.event_handler_error")
+
+            # 2. Parse as text JSON lines
+            try:
+                line_str = chunk.decode("utf-8", errors="ignore").strip()
+                json_part = ""
+                if "Payload:" in line_str:
+                    json_part = line_str.split("Payload:", 1)[1].strip()
+                elif "{" in line_str:
+                    json_part = line_str[line_str.index("{"):]
+
+                if json_part and json_part.startswith("{") and json_part.endswith("}"):
+                    import json
+                    data = json.loads(json_part)
+                    typ = data.get("typ")
+                    seq = int(data.get("seq", data.get("sequence", 0)))
+                    log.info("Packet Parsed", typ=typ or "json_telemetry", seq=seq)
+
+                    # Route through CommunicationGateway if available
+                    if self._gateway is not None:
+                        try:
+                            await self._gateway.handle_incoming(json_part, websocket=None)
+                        except Exception:
+                            log.exception("serial.gateway_routing_error")
+
+                    if typ == "sensor_update":
+                        frame = FeatureFrame.from_json(data)
+                        self._frames_parsed += 1
+                        self._last_frame_ts = datetime.now(tz=timezone.utc)
+                        try:
+                            await self._on_frame(frame)
+                            log.info("Broadcast Sent", type="sensor_update")
+                        except Exception:
+                            self._errors += 1
+                            log.exception("serial.json_frame_handler_error")
+                    elif typ == "heartbeat":
+                        event = AeonEvent(
+                            category="system",
+                            name="heartbeat",
+                            arg=seq,
+                            seq=seq
+                        )
+                        self._events_parsed += 1
+                        if self._on_event is not None:
+                            try:
+                                await self._on_event(event)
+                                log.info("Broadcast Sent", type="heartbeat")
+                            except Exception:
+                                self._errors += 1
+                                log.exception("serial.json_event_handler_error")
+            except Exception as e:
+                log.debug("serial.parse_line_ignored", raw=chunk, error=str(e))
 
     def stop(self) -> None:
         self._stop_event.set()
+
+
+# Dedicated SerialManager alias for SerialBridge
+SerialManager = SerialBridge
+

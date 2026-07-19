@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef, createContext, useContext } from "react";
 
 export interface TelemetryState {
-    serialStatus: {
+  serialStatus: {
     connected: boolean;
     port: string;
     baud: number;
@@ -242,8 +242,13 @@ export function useAeonTelemetry() {
 
     const resolveWsUrl = () => {
       // Prefer explicit env var
-      const envUrl = (import.meta as any).env?.VITE_WS_URL;
-      if (envUrl) return envUrl;
+      let envUrl = (import.meta as any).env?.VITE_WS_URL;
+      if (envUrl) {
+        if (!envUrl.includes("/ws/dashboard")) {
+          envUrl = envUrl.replace(/\/+$/, "") + "/ws/dashboard";
+        }
+        return envUrl;
+      }
 
       // Try to parse VITE_API_BASE_URL
       const baseApiUrl = (import.meta as any).env?.VITE_API_BASE_URL;
@@ -281,12 +286,30 @@ export function useAeonTelemetry() {
       ws.onmessage = (event) => {
         if (!active) return;
         try {
-          console.log("WebSocket message received:", event.data);
           const message = JSON.parse(event.data);
-          console.log("Parsed message type:", message.type);
           if (message.type === "telemetry" && message.payload) {
-            console.log("Setting telemetry state:", message.payload);
             setTelemetry(message.payload);
+          } else if (message.type === "sensor_update" && message.payload) {
+            const p = message.payload;
+            setTelemetry((prev) => ({
+              ...prev,
+              serialStatus: {
+                ...prev.serialStatus,
+                connected: true,
+                temperature: typeof p.temperature === "number" ? Math.round(p.temperature * 10) / 10 : prev.serialStatus.temperature,
+                humidity: typeof p.humidity === "number" ? Math.round(p.humidity * 10) / 10 : prev.serialStatus.humidity,
+                motionState: p.motion ? "Detected" : "Idle",
+              },
+            }));
+          } else if (message.type === "decision" && message.payload) {
+            const d = message.payload;
+            setTelemetry((prev) => ({
+              ...prev,
+              cognitiveStatus: {
+                ...prev.cognitiveStatus,
+                reasoningLatencyMs: typeof d.latency_ms === "number" ? Math.round(d.latency_ms * 100) / 100 : prev.cognitiveStatus.reasoningLatencyMs,
+              },
+            }));
           }
         } catch (err) {
           console.error("Failed to parse WebSocket message:", err);

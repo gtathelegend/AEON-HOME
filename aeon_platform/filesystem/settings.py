@@ -22,8 +22,8 @@ class Settings(BaseSettings):
     api_port: int = Field(default=8000,        validation_alias="AEON_API_PORT")
 
     # ── Serial bridge ─────────────────────────────────────────────────────────
-    serial_port: str = Field(default="/dev/ttyUSB0", validation_alias="AEON_SERIAL_PORT")
-    serial_baud: int = Field(default=115200,          validation_alias="AEON_SERIAL_BAUD")
+    serial_port: str = Field(default="COM10", validation_alias="AEON_SERIAL_PORT")
+    serial_baud: int = Field(default=115200, validation_alias="AEON_SERIAL_BAUD")
 
     # ── QNN / NPU ─────────────────────────────────────────────────────────────
     use_npu:   bool = Field(default=True,                       validation_alias="AEON_USE_NPU")

@@ -14,9 +14,10 @@ static void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
     if (!g_wifi_transport_instance) return;
     switch(type) {
         case WStype_DISCONNECTED:
-            // Handled internally or via check
+            Serial.println("[WS] Disconnected from backend.");
             break;
         case WStype_CONNECTED:
+            Serial.println("[WS] Connected to backend! Handshake complete.");
             break;
         case WStype_TEXT:
             g_wifi_transport_instance->onMessageReceived((const char*)payload);
@@ -33,10 +34,16 @@ WiFiTransport::WiFiTransport()
 
 bool WiFiTransport::connect() {
 #if defined(ARDUINO_UNO_Q)
+    Serial.println("Starting WiFi (via MPU Bridge)...");
+    Serial.print("Backend IP: "); Serial.println(BACKEND_HOST);
+    Serial.print("Backend Port: "); Serial.println(BACKEND_PORT);
+    
     // 1. Initialize the Router Bridge to the Qualcomm MPU
     if (!Bridge.begin()) {
+        Serial.println("Bridge.begin() failed! MPU daemon is not responding.");
         return false;
     }
+    Serial.println("Bridge Connected.");
 #else
     // 1. Connect to WiFi
     WiFi.mode(WIFI_STA);
@@ -52,6 +59,7 @@ bool WiFiTransport::connect() {
 #endif
 
     // 2. Connect WebSocket
+    Serial.println("Attempting TCP/WebSocket connection to Backend...");
     _webSocket.begin(BACKEND_HOST, BACKEND_PORT, BACKEND_WS_PATH);
     _webSocket.onEvent(webSocketEvent);
     _webSocket.setReconnectInterval(WS_RECONNECT_INTERVAL);
@@ -69,8 +77,17 @@ void WiFiTransport::disconnect() {
 }
 
 bool WiFiTransport::send(const char* payload) {
-    if (!isConnected()) return false;
-    return _webSocket.sendTXT(payload);
+    if (!isConnected()) {
+        Serial.println("Socket Error / Connection Timeout: Failed to send telemetry (Socket closed or uninitialized).");
+        return false;
+    }
+    bool success = _webSocket.sendTXT(payload);
+    if (!success) {
+        Serial.println("Socket Error: WebSocket failed to sendTXT.");
+    } else {
+        Serial.println("Telemetry dispatched to transport buffer.");
+    }
+    return success;
 }
 
 int WiFiTransport::receive(char* buf, uint16_t max_len) {

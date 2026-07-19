@@ -22,10 +22,10 @@ class EventBus:
         if event_type not in self._listeners:
             self._listeners[event_type] = []
         self._listeners[event_type].append(listener)
-        log.debug("event_bus.subscribed", event=event_type)
+        log.debug("event_bus.subscribed", event_type=event_type)
 
     async def publish(self, event_type: str, data: Any) -> None:
-        log.info("event_bus.published", event=event_type)
+        log.info("event_bus.published", event_type=event_type)
         if event_type not in self._listeners:
             return
         
@@ -37,7 +37,8 @@ class EventBus:
                 try:
                     listener(data)
                 except Exception as e:
-                    log.error("event_bus.listener_error", event=event_type, error=str(e))
+                    log.error("event_bus.listener_error", event_type=event_type, error=str(e))
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+
