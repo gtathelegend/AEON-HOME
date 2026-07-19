@@ -61,6 +61,9 @@ class MainActivity : ComponentActivity() {
                         onSend = vm::send,
                         onToggle = vm::toggle,
                         onLevel = vm::setLevel,
+                        onSetHub = vm::setHub,
+                        onToggleSettings = vm::toggleSettings,
+                        onLocate = vm::locate,
                         onDismissNotice = vm::dismissNotice,
                         modifier = Modifier.padding(insets),
                     )

@@ -32,10 +32,14 @@ data class UiState(
     val heard: String = "",
     val notice: String? = null,
     val snapshot: HubSnapshot? = null,
-    // Kept in state so the socket can be reopened, never rendered. The address
-    // is discovered, not configured -- see AeonViewModel.locate().
     val host: String = "",
     val port: Int = 8800,
+    // The address screen. Shown on open so the address is always confirmed
+    // before anything connects -- discovery is offered there as a shortcut, not
+    // relied on, because a phone that has silently fallen back to mobile data
+    // will never find a hub and cannot say so from a spinner.
+    val showSettings: Boolean = false,
+    val searching: Boolean = false,
 )
 
 class AeonViewModel(app: Application) : AndroidViewModel(app) {
@@ -62,7 +66,13 @@ class AeonViewModel(app: Application) : AndroidViewModel(app) {
     )
 
     init {
-        locate()
+        // Ask for the address on open, pre-filled with whatever worked last
+        // time. One tap connects; nothing is attempted behind the user's back.
+        _ui.value = _ui.value.copy(
+            showSettings = true,
+            host = _ui.value.host.ifBlank { BuildConfig.HUB_HOST },
+            linkNote = "enter the hub address",
+        )
 
         if (!sarvam.configured) {
             _ui.value = _ui.value.copy(
@@ -88,14 +98,36 @@ class AeonViewModel(app: Application) : AndroidViewModel(app) {
      * so the app opens on the remembered address immediately and quietly
      * corrects itself if discovery disagrees.
      */
+    /** Type an address, save it, connect. The ordinary path. */
+    fun setHub(host: String, port: Int) {
+        val trimmed = host.trim()
+        if (trimmed.isBlank()) {
+            _ui.value = _ui.value.copy(notice = "Enter the address the hub printed on the PC.")
+            return
+        }
+        prefs.edit().putString("host", trimmed).putInt("port", port).apply()
+        _ui.value = _ui.value.copy(
+            host = trimmed, port = port, showSettings = false, notice = null,
+        )
+        hub.connect(trimmed, port)
+    }
+
+    fun toggleSettings() {
+        _ui.value = _ui.value.copy(showSettings = !_ui.value.showSettings)
+    }
+
+    /**
+     * Optional shortcut on the address screen: ask the network where the hub is
+     * and fill the field in. Never automatic -- it fails silently on a phone
+     * that has fallen back to mobile data, and a field the user can read and
+     * correct is worth more than a search that quietly finds nothing.
+     */
     fun locate() {
-        val remembered = _ui.value.host
-        val baked = BuildConfig.HUB_HOST
-        val fallback = remembered.ifBlank { baked }
-        if (fallback.isNotBlank()) hub.connect(fallback, _ui.value.port)
+        _ui.value = _ui.value.copy(searching = true)
 
         viewModelScope.launch {
             val found = withContext(Dispatchers.IO) { HubDiscovery.find(appContext) }
+            _ui.value = _ui.value.copy(searching = false)
             if (found == null) {
                 // Name the actual cause. "Could not find the hub" sends someone
                 // debugging the laptop when the phone is on mobile data.
@@ -113,11 +145,12 @@ class AeonViewModel(app: Application) : AndroidViewModel(app) {
                 )
                 return@launch
             }
-            if (found.host == _ui.value.host && _ui.value.linked) return@launch
-
-            prefs.edit().putString("host", found.host).putInt("port", found.port).apply()
-            _ui.value = _ui.value.copy(host = found.host, port = found.port)
-            hub.connect(found.host, found.port)
+            // Fill the field in and leave the screen up. The user presses
+            // Connect -- the address is confirmed by a person, not assumed.
+            _ui.value = _ui.value.copy(
+                host = found.host, port = found.port,
+                notice = "Found a hub at ${found.host}. Press Connect.",
+            )
         }
     }
 
@@ -136,9 +169,10 @@ class AeonViewModel(app: Application) : AndroidViewModel(app) {
     private fun ensureConnected(): Boolean {
         val host = _ui.value.host
         if (host.isBlank()) {
-            // Nothing to connect to yet: re-run discovery rather than asking the
-            // user for an address they should never have to know.
-            locate()
+            _ui.value = _ui.value.copy(
+                showSettings = true,
+                notice = "Enter the hub address first - the AI PC prints it on startup.",
+            )
             return false
         }
         if (!_ui.value.linked) hub.connect(host, _ui.value.port)

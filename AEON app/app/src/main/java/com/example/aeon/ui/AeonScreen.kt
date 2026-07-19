@@ -64,6 +64,9 @@ fun AeonScreen(
     onSend: (String) -> Unit,
     onToggle: (String, Boolean, Double?) -> Unit,
     onLevel: (String, Double) -> Unit,
+    onSetHub: (String, Int) -> Unit,
+    onToggleSettings: () -> Unit,
+    onLocate: () -> Unit,
     onDismissNotice: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -76,9 +79,11 @@ fun AeonScreen(
             .padding(top = 18.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
-        // No settings sheet. The hub is found by UDP discovery and remembered,
-        // so its address is never something the user has to see, type, or know.
-        Header(state)
+        Header(state, onToggleSettings)
+
+        if (state.showSettings) {
+            HubSettings(state, onSetHub, onLocate)
+        }
 
         state.notice?.let { Notice(it, onDismissNotice) }
 
@@ -134,7 +139,7 @@ fun AeonScreen(
 // ── header ───────────────────────────────────────────────────────────────
 
 @Composable
-private fun Header(state: UiState) {
+private fun Header(state: UiState, onToggleSettings: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -142,8 +147,6 @@ private fun Header(state: UiState) {
     ) {
         Text("ÆON HOME", style = MaterialTheme.typography.titleMedium, color = Ink)
 
-        // Link state only -- never the address. A dot and the house's clock say
-        // everything the user needs: connected, and showing live data.
         Row(verticalAlignment = Alignment.CenterVertically) {
             Dot(filled = state.linked, online = state.linked)
             Spacer(Modifier.width(8.dp))
@@ -151,6 +154,73 @@ private fun Header(state: UiState) {
                 if (state.linked) state.snapshot?.clock ?: "linked" else state.linkNote,
                 style = MaterialTheme.typography.labelSmall,
                 color = Ink3,
+            )
+            Spacer(Modifier.width(12.dp))
+            // Always reachable. When the laptop's address changes mid-demo this
+            // is the one control that gets you working again.
+            TextButton(
+                onClick = onToggleSettings,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp),
+            ) {
+                Text("HUB", style = MaterialTheme.typography.labelSmall, color = Ink)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HubSettings(
+    state: UiState,
+    onSetHub: (String, Int) -> Unit,
+    onLocate: () -> Unit,
+) {
+    var host by remember(state.host) { mutableStateOf(state.host) }
+    var port by remember(state.port) { mutableStateOf(state.port.toString()) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Rule2, RoundedCornerShape(2.dp))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Label("Hub address")
+        Text(
+            "The address the hub prints on the PC when it starts. " +
+                "Phone and PC on the same WiFi; no pairing, no account.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Ink3,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedTextField(
+                value = host,
+                onValueChange = { host = it },
+                placeholder = { Text("192.168.1.42", color = Ink4) },
+                singleLine = true,
+                modifier = Modifier.weight(2f),
+                textStyle = MaterialTheme.typography.bodyLarge,
+            )
+            OutlinedTextField(
+                value = port,
+                onValueChange = { port = it.filter(Char::isDigit).take(5) },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                textStyle = MaterialTheme.typography.bodyLarge,
+            )
+        }
+        BlockButton("Connect") { onSetHub(host, port.toIntOrNull() ?: 8800) }
+        // Offered, not relied on: it fills the field in and the user still
+        // presses Connect. On a phone that has fallen back to mobile data it
+        // finds nothing, and a typed address still works.
+        TextButton(
+            onClick = onLocate,
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+        ) {
+            Text(
+                if (state.searching) "SEARCHING…" else "FIND ON THIS WIFI",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (state.searching) Ink3 else Ink,
             )
         }
     }
