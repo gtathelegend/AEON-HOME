@@ -269,6 +269,48 @@ That mix is deliberate. Stated preferences give the model a clean signal on day 
 
 ---
 
+## When life doesn't follow the pattern
+
+Two fair questions: *what if I have a fever and don't want the AC tonight?* and *what if this Tuesday is a holiday?*
+
+The short answer is that **ÆON stops acting on its own before it gets a chance to annoy you.** It does not need a "sick mode". Four things make that true.
+
+**1 · Each appliance remembers what actually happened — not what the model wanted.**
+After every decision the system writes the appliance's *real* state back into its 24-hour memory. The moment you switch the AC off by hand, "off" becomes part of what the model reads on the next tick. Your correction is not discarded; it is the newest thing the model knows.
+
+**2 · A model that gets contradicted loses confidence — and confidence is its permission to act.**
+The model has to be roughly **81% sure** before it may touch anything. Once your override contradicts the learned pattern, its certainty falls below that line and it simply stops switching things. It does not argue with you, and it does not need to be told why.
+
+You can watch this happen on the dashboard. The device card moves from `model · 0.94` to `unsure · 0.61`. Same model, same schedule — it has just decided this is not a moment to act.
+
+| Card reads | What it means |
+|---|---|
+| `model · 0.94` | confident, and it acted |
+| `unsure · 0.61` | it was allowed to act and **chose not to** — the pattern stopped matching |
+| `standing by · 0.35` | it has no real view either way |
+| `held · 0.94` | it decided, but automation is switched off |
+
+**3 · One unusual week cannot rewrite your habits.**
+Training only runs when you press `RETRAIN`, and a new model may only replace the current one if it **beats it on all your data**. Three fever days measured against a month of history will not win that comparison. Your normal routine survives the exception.
+
+**4 · If you want it to stop completely, that is one button.**
+`DISABLE AUTOMATION` stops it touching anything — but it keeps watching, recording and learning. So when you are better it resumes warm, on a continuous window, instead of blind on a day that never happened.
+
+### The holiday case
+
+| Situation | What happens |
+|---|---|
+| Holiday, and you're **out** | Already handled, and not by the model. Occupancy is deterministic — an empty room forces `off_when_empty` appliances off regardless of what the model predicted. "Nobody is home" is never a probabilistic judgement. |
+| Holiday, and you're **home on a Tuesday** | The system sees you present at an hour you are normally out. Its input already differs from a normal Tuesday, so the same confidence drop applies and it backs off. It understands weekday-vs-weekend rules, but it does not yet know that a *specific date* is a holiday. |
+
+### What we're adding next
+
+- **A holiday flag as one more input**, sitting beside "is it a weekend". The model then learns on its own that holidays behave like Sundays, rather than us hand-coding the rule.
+- **Turning `unsure` into an actual question on the phone** — *"You usually run the AC around now. Want it on?"* Today an uncertain model goes quiet, which is safe but silent. The confidence tier that would drive the prompt is already computed on every tick; it just needs somewhere to appear.
+- **Weighting deliberate corrections above routine actions when training**, so the one evening you overrode the AC counts for more than the twenty-seven evenings you simply let it run.
+
+---
+
 ## Quantization
 
 Deployment artifacts are INT8, produced with ONNX Runtime's dynamic quantizer:

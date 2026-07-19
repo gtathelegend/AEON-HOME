@@ -191,10 +191,14 @@ function renderDevices(devices) {
     // Three decimals: the model genuinely moves in the third one, and a
     // confidence pinned at "1.00" every tick looks printed on rather than
     // computed. Two decimals were hiding a live number.
-    // "held" means the model decided and was not allowed to act. Saying `model`
-    // while automation is off would credit it with something it did not do.
-    const verdict = d.gate === "held"
-      ? `held · ${d.confidence.toFixed(3)}`
+    // Four states, and only one of them is the model acting. "held" means it
+    // decided and was not permitted to act; "unsure" and "standing by" mean it
+    // was permitted and declined -- the window stopped agreeing with what it
+    // learned, so it backed off on its own. Collapsing those into `model` was
+    // the screen claiming credit for a switch that never happened.
+    const VERDICT = { held: "held", ask: "unsure", abstain: "standing by" };
+    const verdict = VERDICT[d.gate]
+      ? `${VERDICT[d.gate]} · ${d.confidence.toFixed(3)}`
       : `${esc(d.source)} · ${d.confidence.toFixed(3)}`;
     el.querySelector(".foot").innerHTML = !d.online
       ? `<span class="link off">leaf offline</span>`
